@@ -24,6 +24,7 @@ workflows:
         DISCOUNTHUB_API_BASE_URL: "https://api.discounthub.uz"
         FLUTTER_BUILD_NAME: "1.0.0"
         FLUTTER_BUILD_NUMBER: "3"
+        ASC_KEY_ID: "27Z73JY49N"
 
     triggering:
       events:
@@ -50,18 +51,22 @@ workflows:
         script: |
           set -euo pipefail
 
-          : "${APP_STORE_CONNECT_KEY_IDENTIFIER:?Missing APP_STORE_CONNECT_KEY_IDENTIFIER in Codemagic environment group appstore_credentials}"
+          : "${ASC_KEY_ID:?Missing ASC_KEY_ID in codemagic.yaml environment vars}"
           : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID in Codemagic environment group appstore_credentials}"
 
+          if [ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}" ] && [ "$APP_STORE_CONNECT_KEY_IDENTIFIER" != "$ASC_KEY_ID" ]; then
+            echo "Ignoring APP_STORE_CONNECT_KEY_IDENTIFIER=$APP_STORE_CONNECT_KEY_IDENTIFIER from Codemagic env group; using ASC_KEY_ID=$ASC_KEY_ID from codemagic.yaml."
+          fi
+
           mkdir -p "$HOME/.appstoreconnect/private_keys"
-          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
           python3 <<'PY'
           import base64
           import os
           from pathlib import Path
 
-          key_id = os.environ["APP_STORE_CONNECT_KEY_IDENTIFIER"].strip()
+          key_id = os.environ["ASC_KEY_ID"].strip()
           out_path = Path.home() / ".appstoreconnect" / "private_keys" / f"AuthKey_{key_id}.p8"
 
           raw_base64 = os.environ.get("APP_STORE_CONNECT_PRIVATE_KEY_BASE64", "").strip()
@@ -94,7 +99,7 @@ workflows:
           echo "Validating App Store Connect API access for $BUNDLE_ID..."
           app-store-connect apps list \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --key-id "$ASC_KEY_ID" \
             --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
             --bundle-id-identifier "$BUNDLE_ID" \
             --strict-match-identifier \
@@ -187,10 +192,10 @@ workflows:
         script: |
           set -euo pipefail
 
-          : "${APP_STORE_CONNECT_KEY_IDENTIFIER:?Missing APP_STORE_CONNECT_KEY_IDENTIFIER}"
+          : "${ASC_KEY_ID:?Missing ASC_KEY_ID}"
           : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID}"
 
-          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
           if [ ! -f "$ASC_PRIVATE_KEY_PATH" ]; then
             echo "Missing prepared key file at $ASC_PRIVATE_KEY_PATH"
             exit 1
@@ -206,7 +211,7 @@ workflows:
           app-store-connect publish \
             --path "$IPA_PATH" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --key-id "$ASC_KEY_ID" \
             --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
             --platform IOS \
             --altool-verbose-logging
