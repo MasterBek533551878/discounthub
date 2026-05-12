@@ -8,6 +8,8 @@ workflows:
       app_store_connect: discounthub_app_store
 
     environment:
+      groups:
+        - appstore_credentials
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -43,6 +45,61 @@ workflows:
       - name: Analyze Flutter project
         script: |
           flutter analyze
+
+      - name: Prepare and validate App Store Connect API key
+        script: |
+          set -euo pipefail
+
+          : "${APP_STORE_CONNECT_KEY_IDENTIFIER:?Missing APP_STORE_CONNECT_KEY_IDENTIFIER in Codemagic environment group appstore_credentials}"
+          : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID in Codemagic environment group appstore_credentials}"
+
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+
+          python3 <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          key_id = os.environ["APP_STORE_CONNECT_KEY_IDENTIFIER"].strip()
+          out_path = Path.home() / ".appstoreconnect" / "private_keys" / f"AuthKey_{key_id}.p8"
+
+          raw_base64 = os.environ.get("APP_STORE_CONNECT_PRIVATE_KEY_BASE64", "").strip()
+          raw_plain = os.environ.get("APP_STORE_CONNECT_PRIVATE_KEY", "").strip()
+
+          if raw_base64:
+              compact = "".join(raw_base64.split())
+              try:
+                  key = base64.b64decode(compact, validate=True).decode("utf-8")
+              except Exception as exc:
+                  raise SystemExit("APP_STORE_CONNECT_PRIVATE_KEY_BASE64 is not valid base64 of the .p8 file: " + str(exc))
+          elif raw_plain:
+              key = raw_plain.strip().strip('"').strip("'")
+              key = key.replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n").strip()
+          else:
+              raise SystemExit("Missing APP_STORE_CONNECT_PRIVATE_KEY_BASE64. Add it to Codemagic environment group appstore_credentials.")
+
+          if not key.startswith("-----BEGIN PRIVATE KEY-----"):
+              raise SystemExit("Decoded App Store Connect key does not start with -----BEGIN PRIVATE KEY-----. Use base64 of the raw .p8 file, not a path and not copied UI text.")
+          if not key.endswith("-----END PRIVATE KEY-----"):
+              raise SystemExit("Decoded App Store Connect key does not end with -----END PRIVATE KEY-----. Use the full .p8 file content.")
+
+          out_path.write_text(key + "\n", encoding="utf-8")
+          out_path.chmod(0o600)
+          print(f"Prepared App Store Connect key file: {out_path}")
+          print("Key ID:", key_id)
+          print("Issuer ID:", os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip())
+          PY
+
+          echo "Validating App Store Connect API access for $BUNDLE_ID..."
+          app-store-connect apps list \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
+            --bundle-id-identifier "$BUNDLE_ID" \
+            --strict-match-identifier \
+            --platform IOS \
+            --json
 
       - name: Prepare iOS manual signing
         script: |
@@ -126,14 +183,37 @@ workflows:
             --dart-define=DISCOUNTHUB_API_BASE_URL=$DISCOUNTHUB_API_BASE_URL \
             --export-options-plist=/Users/builder/export_options.plist
 
+      - name: Upload IPA to App Store Connect with explicit API key
+        script: |
+          set -euo pipefail
+
+          : "${APP_STORE_CONNECT_KEY_IDENTIFIER:?Missing APP_STORE_CONNECT_KEY_IDENTIFIER}"
+          : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID}"
+
+          export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
+          if [ ! -f "$ASC_PRIVATE_KEY_PATH" ]; then
+            echo "Missing prepared key file at $ASC_PRIVATE_KEY_PATH"
+            exit 1
+          fi
+
+          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA file found in build/ios/ipa"
+            exit 1
+          fi
+
+          echo "Uploading IPA to App Store Connect: $IPA_PATH"
+          app-store-connect publish \
+            --path "$IPA_PATH" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
+            --platform IOS \
+            --altool-verbose-logging
+
 
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - flutter_drive.log
 
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: false
-        submit_to_app_store: false
