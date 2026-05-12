@@ -8,6 +8,8 @@ workflows:
       app_store_connect: discounthub_app_store
 
     environment:
+      groups:
+        - appstore_credentials
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -44,6 +46,29 @@ workflows:
         script: |
           flutter analyze
 
+      - name: Check App Store Connect publishing credentials
+        script: |
+          set -euo pipefail
+
+          if [ -z "${APP_STORE_CONNECT_PRIVATE_KEY:-}" ]; then
+            echo "APP_STORE_CONNECT_PRIVATE_KEY is missing. Add it to the appstore_credentials group."
+            exit 1
+          fi
+
+          if [ -z "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}" ]; then
+            echo "APP_STORE_CONNECT_KEY_IDENTIFIER is missing. Add it to the appstore_credentials group."
+            exit 1
+          fi
+
+          if [ -z "${APP_STORE_CONNECT_ISSUER_ID:-}" ]; then
+            echo "APP_STORE_CONNECT_ISSUER_ID is missing. Add it to the appstore_credentials group."
+            exit 1
+          fi
+
+          echo "App Store Connect credentials are present."
+          echo "Key ID: $APP_STORE_CONNECT_KEY_IDENTIFIER"
+          echo "Issuer ID: $APP_STORE_CONNECT_ISSUER_ID"
+
       - name: Prepare iOS manual signing
         script: |
           set -euo pipefail
@@ -62,8 +87,6 @@ workflows:
           project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
           runner = project.targets.find { |target| target.name == 'Runner' }
           raise 'Runner target not found in ios/Runner.xcodeproj' unless runner
-
-          puts 'Keeping RunnerTests target so CocoaPods Podfile stays valid'
 
           runner.build_configurations.each do |config|
             config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'uz.discounthub.app'
@@ -135,6 +158,8 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: false
         submit_to_app_store: false
