@@ -17,6 +17,8 @@ workflows:
       vars:
         BUNDLE_ID: "uz.discounthub.app"
         APP_NAME: "DiscountHub"
+        APPLE_TEAM_ID: "Z8XC7UAF2N"
+        IOS_PROFILE_NAME: "DiscountHub App Store Codemagic"
         DISCOUNTHUB_API_BASE_URL: "https://api.discounthub.uz"
         FLUTTER_BUILD_NAME: "1.0.0"
         FLUTTER_BUILD_NUMBER: "2"
@@ -42,37 +44,85 @@ workflows:
         script: |
           flutter analyze
 
-      - name: Set up iOS code signing
+      - name: Prepare iOS manual signing
         script: |
           set -euo pipefail
 
-          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "Searching DiscountHub App Store provisioning profile in: $PROFILES_DIR"
+          echo "Preparing iOS manual signing for $BUNDLE_ID"
+          echo "Team ID: $APPLE_TEAM_ID"
+          echo "Provisioning profile: $IOS_PROFILE_NAME"
 
-          PROFILE_PATH=""
-          while IFS= read -r -d '' profile; do
-            security cms -D -i "$profile" > /tmp/profile.plist
-            PROFILE_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile.plist | sed 's/^[^.]*\.//')
-            PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile.plist)
-            PROFILE_METHOD=$(/usr/libexec/PlistBuddy -c "Print :ProvisionsAllDevices" /tmp/profile.plist 2>/dev/null || true)
-            echo "Found profile: $PROFILE_NAME | bundle: $PROFILE_BUNDLE_ID"
-
-            if [ "$PROFILE_BUNDLE_ID" = "$BUNDLE_ID" ]; then
-              PROFILE_PATH="$profile"
-              echo "Using profile: $PROFILE_NAME"
-              break
-            fi
-          done < <(find "$PROFILES_DIR" -name "*.mobileprovision" -print0)
-
-          if [ -z "$PROFILE_PATH" ]; then
-            echo "No provisioning profile found for $BUNDLE_ID"
-            exit 1
+          if ! ruby -e "require 'xcodeproj'" 2>/dev/null; then
+            gem install xcodeproj --no-document
           fi
 
-          echo "Applying signing only to ios/Runner.xcodeproj"
-          xcode-project use-profiles \
-            --project ios/Runner.xcodeproj \
-            --profile "$PROFILE_PATH"
+          ruby <<'RUBY'
+          require 'xcodeproj'
+
+          project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+          runner = project.targets.find { |target| target.name == 'Runner' }
+          raise 'Runner target not found in ios/Runner.xcodeproj' unless runner
+
+          tests = project.targets.find { |target| target.name == 'RunnerTests' }
+          if tests
+            puts 'Removing RunnerTests target from CI archive project copy'
+            tests.remove_from_project
+          end
+
+          runner.build_configurations.each do |config|
+            config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'uz.discounthub.app'
+            config.build_settings['DEVELOPMENT_TEAM'] = 'Z8XC7UAF2N'
+            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+            config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = 'DiscountHub App Store Codemagic'
+            config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
+          end
+
+          project.build_configurations.each do |config|
+            config.build_settings['DEVELOPMENT_TEAM'] = 'Z8XC7UAF2N'
+            config.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            config.build_settings['CODE_SIGN_IDENTITY'] = 'Apple Distribution'
+            config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
+          end
+
+          project.save
+          puts 'Manual signing settings written to Runner target'
+          RUBY
+
+          cat > /Users/builder/export_options.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>teamID</key>
+              <string>Z8XC7UAF2N</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>uz.discounthub.app</key>
+                  <string>DiscountHub App Store Codemagic</string>
+              </dict>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
+              <key>uploadBitcode</key>
+              <false/>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          PLIST
+
+          echo "Export options:"
+          cat /Users/builder/export_options.plist
+
+          echo "Installed signing identities:"
+          security find-identity -v -p codesigning || true
+
+          echo "Installed provisioning profiles:"
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles" || true
 
       - name: Build iOS IPA
         script: |
