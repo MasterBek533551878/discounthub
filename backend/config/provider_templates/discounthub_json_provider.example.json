@@ -1,0 +1,8 @@
+{
+  "id": "official_discounthub_provider",
+  "name": "Official DiscountHub-format provider",
+  "url": "https://provider.example.com/discounthub-feed.json",
+  "adapter": "discounthub_json",
+  "enabled": true,
+  "replaceOnSync": false
+}

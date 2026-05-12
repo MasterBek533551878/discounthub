@@ -1,0 +1,33 @@
+{
+  "items": [
+    {
+      "id": "deal_001",
+      "title": {
+        "en": "Wireless Noise Cancelling Headphones",
+        "ru": "Беспроводные наушники с шумоподавлением",
+        "uz": "Shovqinni kamaytiruvchi simsiz quloqchinlar"
+      },
+      "description": {
+        "en": "Premium wireless headphones with active noise cancellation and long battery life.",
+        "ru": "Премиальные беспроводные наушники с активным шумоподавлением и долгой работой батареи.",
+        "uz": "Faol shovqin kamaytirish va uzoq batareya ishlashiga ega simsiz quloqchinlar."
+      },
+      "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e",
+      "platform": "Amazon",
+      "category": "Electronics",
+      "oldPrice": 129.99,
+      "currentPrice": 79.99,
+      "currency": "USD",
+      "productUrl": "https://www.amazon.com/",
+      "affiliateUrl": "https://www.amazon.com/?tag=discounthub-demo",
+      "rating": 4.7,
+      "reviewCount": 2841,
+      "freeShipping": true,
+      "verified": true,
+      "shipsTo": ["US", "UK", "DE", "UZ"]
+    }
+  ],
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 30
+}

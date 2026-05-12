@@ -1,0 +1,24 @@
+{
+  "provider": "Generic product feed example",
+  "products": [
+    {
+      "product_id": "generic_001",
+      "name": "Foldable Bluetooth Keyboard",
+      "summary": "Slim wireless keyboard for tablets, phones and travel work.",
+      "image": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=1200",
+      "merchant": "GenericShop",
+      "category_name": "Electronics",
+      "list_price": "USD 69.99",
+      "sale_price": "USD 39.99",
+      "currency": "USD",
+      "link": "https://example.com/product/foldable-bluetooth-keyboard",
+      "tracking_url": "https://example.com/product/foldable-bluetooth-keyboard?ref=discounthub",
+      "average_rating": 4.5,
+      "reviews": 640,
+      "free_delivery": true,
+      "countries": "US,UZ,UK,DE,TR",
+      "featured": true,
+      "lowest_price": false
+    }
+  ]
+}

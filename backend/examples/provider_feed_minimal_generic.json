@@ -1,0 +1,21 @@
+{
+  "products": [
+    {
+      "sku": "generic_001",
+      "name": "Generic Example Product",
+      "summary": "Generic provider product example.",
+      "image": "https://example.com/generic-image.jpg",
+      "merchant": "GenericProvider",
+      "category": "Home",
+      "price": 39.99,
+      "sale_price": 24.99,
+      "currency": "USD",
+      "url": "https://generic-provider.example.com/product/001",
+      "tracking_url": "https://generic-provider.example.com/product/001?ref=discounthub",
+      "rating": 4.3,
+      "reviews": 220,
+      "free_shipping": true,
+      "ships_to": ["US", "UZ"]
+    }
+  ]
+}

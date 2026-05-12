@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: discounthub-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: discounthub-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_PATH
+        value: /data/discounthub.sqlite3
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: AUTO_REGISTER_FEED_PROVIDERS
+        value: "true"
+      - key: DEFAULT_FEED_PROVIDERS_PATH
+        value: config/feed_providers.production.example.json
+      - key: FEED_SYNC_SCHEDULER_ENABLED
+        value: "true"
+      - key: FEED_SYNC_RUN_ON_STARTUP
+        value: "true"
+      - key: FEED_SYNC_INTERVAL_SECONDS
+        value: "3600"
+      - key: FEED_SYNC_TIMEOUT_SECONDS
+        value: "30"
+      - key: ADMIN_API_TOKEN
+        sync: false

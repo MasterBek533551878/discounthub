@@ -1,0 +1,22 @@
+{
+  "provider": "Awin-like product feed example",
+  "products": [
+    {
+      "product_id": "awin_001",
+      "product_name": "Travel Organizer Backpack",
+      "description": "Water-resistant backpack with laptop pocket and compact travel compartments.",
+      "image_url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=1200",
+      "merchant_name": "AwinDemoStore",
+      "category_name": "Fashion",
+      "product_price": "45.99",
+      "rrp_price": "89.99",
+      "currency": "USD",
+      "merchant_deep_link": "https://example.com/product/travel-organizer-backpack",
+      "deep_link": "https://example.com/product/travel-organizer-backpack?ref=discounthub",
+      "average_rating": 4.4,
+      "review_count": 540,
+      "free_shipping": true,
+      "ships_to": ["US", "UZ", "UK", "TR"]
+    }
+  ]
+}

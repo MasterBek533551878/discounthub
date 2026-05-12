@@ -1,0 +1,8 @@
+{
+  "id": "admitad_products_global",
+  "name": "Admitad products global feed",
+  "url": "https://provider.example.com/admitad-products.csv",
+  "adapter": "admitad_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

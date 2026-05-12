@@ -1,0 +1,290 @@
+[
+  {
+    "id": "ebay_expansion_smartphones_us",
+    "name": "eBay Expansion - Smartphone Deals - eBay US",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_us",
+    "name": "eBay Expansion - Tablet Deals - eBay US",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AUSD&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_us",
+    "name": "eBay Expansion - Camera Deals - eBay US",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_us",
+    "name": "eBay Expansion - Monitor Deals - eBay US",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AUSD&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_us",
+    "name": "eBay Expansion - Computer Parts Deals - eBay US",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AUSD&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_us",
+    "name": "eBay Expansion - Gaming Console Deals - eBay US",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_us",
+    "name": "eBay Expansion - Beauty Deals - eBay US",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_us",
+    "name": "eBay Expansion - Bag Deals - eBay US",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AUSD&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_us",
+    "name": "eBay Expansion - Toy Deals - eBay US",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_us",
+    "name": "eBay Expansion - Car Accessory Deals - eBay US",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_us",
+    "name": "eBay Expansion - Fitness Deals - eBay US",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AUSD&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_us",
+    "name": "eBay Expansion - Home Appliance Deals - eBay US",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AUSD&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_smartphones_gb",
+    "name": "eBay Expansion - Smartphone Deals - eBay UK",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_gb",
+    "name": "eBay Expansion - Tablet Deals - eBay UK",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AGBP&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_gb",
+    "name": "eBay Expansion - Camera Deals - eBay UK",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_gb",
+    "name": "eBay Expansion - Monitor Deals - eBay UK",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AGBP&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_gb",
+    "name": "eBay Expansion - Computer Parts Deals - eBay UK",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AGBP&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_gb",
+    "name": "eBay Expansion - Gaming Console Deals - eBay UK",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_gb",
+    "name": "eBay Expansion - Beauty Deals - eBay UK",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_gb",
+    "name": "eBay Expansion - Bag Deals - eBay UK",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_gb",
+    "name": "eBay Expansion - Toy Deals - eBay UK",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_gb",
+    "name": "eBay Expansion - Car Accessory Deals - eBay UK",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_gb",
+    "name": "eBay Expansion - Fitness Deals - eBay UK",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_gb",
+    "name": "eBay Expansion - Home Appliance Deals - eBay UK",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AGBP&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_smartphones_de",
+    "name": "eBay Expansion - Smartphone Deals - eBay Germany",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_de",
+    "name": "eBay Expansion - Tablet Deals - eBay Germany",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AEUR&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_de",
+    "name": "eBay Expansion - Camera Deals - eBay Germany",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_de",
+    "name": "eBay Expansion - Monitor Deals - eBay Germany",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AEUR&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_de",
+    "name": "eBay Expansion - Computer Parts Deals - eBay Germany",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AEUR&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_de",
+    "name": "eBay Expansion - Gaming Console Deals - eBay Germany",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_de",
+    "name": "eBay Expansion - Beauty Deals - eBay Germany",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_de",
+    "name": "eBay Expansion - Bag Deals - eBay Germany",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AEUR&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_de",
+    "name": "eBay Expansion - Toy Deals - eBay Germany",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_de",
+    "name": "eBay Expansion - Car Accessory Deals - eBay Germany",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_de",
+    "name": "eBay Expansion - Fitness Deals - eBay Germany",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AEUR&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_de",
+    "name": "eBay Expansion - Home Appliance Deals - eBay Germany",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AEUR&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  }
+]

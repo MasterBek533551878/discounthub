@@ -1,0 +1,4 @@
+id,title,description,image_url,merchant_name,category,old_price,current_price,currency,product_url,affiliate_url,free_shipping,ships_to
+csv_001,Wireless ANC Headphones,Affiliate CSV sample product,https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200,Sample Audio Store,Headphones,129.99,69.99,USD,https://example.com/headphones,https://example.com/headphones?subid=discounthub,true,"US,GB,DE"
+csv_002,Smart Watch Series Pro,Affiliate CSV sample product,https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1200,Sample Tech Store,Smart Watches,199.99,99.99,USD,https://example.com/watch,https://example.com/watch?subid=discounthub,false,
+csv_003,Running Sneakers,Affiliate CSV sample product,https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200,Sample Sport Store,Athletic Shoes,119.99,59.99,USD,https://example.com/sneakers,https://example.com/sneakers?subid=discounthub,true,"US,FR,IT,ES"

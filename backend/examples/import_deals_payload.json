@@ -1,0 +1,26 @@
+{
+  "replace": false,
+  "items": [
+    {
+      "id": "deal_import_001",
+      "title": "Wireless Charging Pad",
+      "description": "Slim wireless charger for phones and earbuds.",
+      "imageUrl": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=1200",
+      "platform": "DemoShop",
+      "category": "Electronics",
+      "oldPrice": 29.99,
+      "currentPrice": 14.99,
+      "currency": "USD",
+      "productUrl": "https://example.com/product/wireless-charging-pad",
+      "affiliateUrl": "https://example.com/product/wireless-charging-pad?ref=discounthub",
+      "rating": 4.4,
+      "reviewCount": 730,
+      "freeShipping": true,
+      "verified": true,
+      "shipsTo": ["US", "UZ", "UK", "DE"],
+      "hotDeal": true,
+      "lowestPrice": false,
+      "dealScore": 89
+    }
+  ]
+}

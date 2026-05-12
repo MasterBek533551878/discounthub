@@ -1,0 +1,8 @@
+{
+  "id": "generic_products_provider",
+  "name": "Generic products provider",
+  "url": "https://provider.example.com/products.json",
+  "adapter": "generic_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

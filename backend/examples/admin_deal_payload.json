@@ -1,0 +1,21 @@
+{
+  "id": "deal_custom_001",
+  "title": "USB-C Fast Charger 65W",
+  "description": "Compact fast charger for laptops, tablets and phones.",
+  "imageUrl": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=1200",
+  "platform": "DemoShop",
+  "category": "Electronics",
+  "oldPrice": 49.99,
+  "currentPrice": 24.99,
+  "currency": "USD",
+  "productUrl": "https://example.com/product/usb-c-fast-charger",
+  "affiliateUrl": "https://example.com/product/usb-c-fast-charger?ref=discounthub",
+  "rating": 4.6,
+  "reviewCount": 1240,
+  "freeShipping": true,
+  "verified": true,
+  "shipsTo": ["US", "UZ", "UK", "DE"],
+  "hotDeal": true,
+  "lowestPrice": false,
+  "dealScore": 91
+}

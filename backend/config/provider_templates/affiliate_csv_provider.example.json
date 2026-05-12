@@ -1,0 +1,8 @@
+{
+  "id": "affiliate_csv_global",
+  "name": "Affiliate CSV global feed",
+  "url": "https://provider.example.com/products.csv",
+  "adapter": "csv_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

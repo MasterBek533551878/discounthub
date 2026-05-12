@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "networks": [
+    {
+      "id": "ebay_partner_network",
+      "name": "eBay Partner Network / eBay APIs",
+      "priority": 1,
+      "status": "recommended_first",
+      "sourceType": "api",
+      "adapterTarget": "ebay_browse_api",
+      "docs": [
+        "https://developer.ebay.com/api-docs/buy/browse/overview.html",
+        "https://developer.ebay.com/api-docs/buy/static/api-deal.html"
+      ],
+      "notes": "Start with Browse API. Deal API can be limited release, so do not depend on it for MVP."
+    },
+    {
+      "id": "awin",
+      "name": "Awin Product Feeds",
+      "priority": 2,
+      "status": "recommended",
+      "sourceType": "feed",
+      "adapterTarget": "awin_products",
+      "docs": [
+        "https://success.awin.com/s/article/How-can-I-access-a-Product-Feed"
+      ],
+      "notes": "Use CSV/Create-a-Feed or converted JSON feed."
+    },
+    {
+      "id": "rakuten_advertising",
+      "name": "Rakuten Advertising Product Search API",
+      "priority": 3,
+      "status": "recommended",
+      "sourceType": "api",
+      "adapterTarget": "rakuten_product_search",
+      "docs": [
+        "https://developers.rakutenadvertising.com/guides/product_search",
+        "https://developers.rakutenadvertising.com/documentation/en-US/affiliate_apis"
+      ],
+      "notes": "Search partner-advertiser product feed data."
+    },
+    {
+      "id": "cj_affiliate",
+      "name": "CJ Affiliate Product Feed API",
+      "priority": 4,
+      "status": "recommended_later",
+      "sourceType": "graphql_api",
+      "adapterTarget": "cj_product_feed",
+      "docs": [
+        "https://developers.cj.com/graphql/reference/Product%20Feed",
+        "https://developers.cj.com/"
+      ],
+      "notes": "GraphQL Product API for product information."
+    },
+    {
+      "id": "impact",
+      "name": "Impact Product Catalogs",
+      "priority": 5,
+      "status": "recommended_later",
+      "sourceType": "api_or_catalog_feed",
+      "adapterTarget": "impact_product_catalog",
+      "docs": [
+        "https://help.impact.com/partner/what-would-you-like-to-learn-about/platform-features/marketing-content/product-marketplace-and-catalogs/download-product-catalogs-as-a-partner"
+      ],
+      "notes": "Use catalog downloads/API access when approved."
+    },
+    {
+      "id": "amazon_creators_api",
+      "name": "Amazon Creators API",
+      "priority": 6,
+      "status": "important_later",
+      "sourceType": "api",
+      "adapterTarget": "amazon_creators_api",
+      "docs": [
+        "https://webservices.amazon.com/paapi5/documentation/register-for-pa-api.html"
+      ],
+      "notes": "Amazon PA-API documentation points to Creators API migration. Do after compliance and MVP are stable."
+    },
+    {
+      "id": "aliexpress_affiliate",
+      "name": "AliExpress Affiliate/Open Platform",
+      "priority": 7,
+      "status": "investigate",
+      "sourceType": "api",
+      "adapterTarget": "aliexpress_affiliate_api",
+      "docs": [
+        "https://aeplatform.ru/ru/docs/api/"
+      ],
+      "notes": "Use only official partner/API access. Regional portals may differ."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+services:
+  discounthub-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: discounthub-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production.example
+    environment:
+      DATABASE_PATH: /data/discounthub.sqlite3
+      DEFAULT_FEED_PROVIDERS_PATH: config/feed_providers.production.example.json
+    volumes:
+      - discounthub_data:/data
+    restart: unless-stopped
+
+volumes:
+  discounthub_data:

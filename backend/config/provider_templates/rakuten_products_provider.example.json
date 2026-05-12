@@ -1,0 +1,8 @@
+{
+  "id": "rakuten_products_global",
+  "name": "Rakuten products global feed",
+  "url": "https://provider.example.com/rakuten-products.csv",
+  "adapter": "rakuten_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

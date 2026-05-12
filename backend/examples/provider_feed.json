@@ -1,0 +1,25 @@
+{
+  "provider": "Demo provider feed",
+  "items": [
+    {
+      "id": "feed_demo_001",
+      "title": "Compact Travel Power Bank 20000mAh",
+      "description": "Portable high-capacity power bank with USB-C fast charging for travel and daily use.",
+      "imageUrl": "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=1200",
+      "platform": "FeedShop",
+      "category": "Electronics",
+      "oldPrice": 59.99,
+      "currentPrice": 31.99,
+      "currency": "USD",
+      "productUrl": "https://example.com/product/power-bank-20000mah",
+      "affiliateUrl": "https://example.com/product/power-bank-20000mah?ref=discounthub",
+      "rating": 4.7,
+      "reviewCount": 2180,
+      "freeShipping": true,
+      "verified": true,
+      "shipsTo": ["US", "UZ", "UK", "DE", "TR"],
+      "hotDeal": true,
+      "lowestPrice": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "awin_products_provider",
+  "name": "Awin-style products provider",
+  "url": "https://provider.example.com/awin-products.json",
+  "adapter": "awin_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

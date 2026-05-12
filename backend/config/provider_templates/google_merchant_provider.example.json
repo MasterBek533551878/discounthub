@@ -1,0 +1,8 @@
+{
+  "id": "google_merchant_provider",
+  "name": "Google Merchant style provider",
+  "url": "https://provider.example.com/google-merchant-products.json",
+  "adapter": "google_merchant",
+  "enabled": true,
+  "replaceOnSync": false
+}

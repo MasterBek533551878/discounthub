@@ -1,0 +1,530 @@
+[
+  {
+    "id": "ebay_browse_headphones",
+    "name": "eBay Browse API - Discounted Headphones Deals",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_browse_laptops",
+    "name": "eBay Browse API - Discounted Laptop Deals",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B100..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_browse_smart_watches",
+    "name": "eBay Browse API - Discounted Smart Watch Deals",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B20..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_browse_gaming_accessories",
+    "name": "eBay Browse API - Discounted Gaming Accessories Deals",
+    "url": "ebay://browse?q=gaming+keyboard+mouse+controller+headset&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B15..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cskin+only%7Csticker+only%7Cshell+only%7Ccase+only%7Creplacement+shell%7Cbutton+only%7Cthumbstick+only%7Ccable+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccharger+only%7Ccover+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_browse_sneakers",
+    "name": "eBay Browse API - Discounted Sneaker Deals",
+    "url": "ebay://browse?q=men+sneakers&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B20..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_browse_home_gadgets",
+    "name": "eBay Browse API - Discounted Smart Home Gadget Deals",
+    "url": "ebay://browse?q=smart+home+gadgets&marketplace_id=EBAY_US&limit=200&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cremote+only%7Ccover+only%7Cbattery+only%7Ccharger+only%7Creplacement%7Cparts%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccable+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_gb",
+    "name": "eBay Global - Wireless Headphones Deals - eBay UK",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B8..%5D%2CpriceCurrency%3AGBP&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_gb",
+    "name": "eBay Global - Laptops Deals - eBay UK",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_gb",
+    "name": "eBay Global - Smart Watches Deals - eBay UK",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_gb",
+    "name": "eBay Global - Sneakers Deals - eBay UK",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_de",
+    "name": "eBay Global - Wireless Headphones Deals - eBay Germany",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_de",
+    "name": "eBay Global - Laptops Deals - eBay Germany",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B100..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_de",
+    "name": "eBay Global - Smart Watches Deals - eBay Germany",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_de",
+    "name": "eBay Global - Sneakers Deals - eBay Germany",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_fr",
+    "name": "eBay Global - Wireless Headphones Deals - eBay France",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_FR&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_fr",
+    "name": "eBay Global - Laptops Deals - eBay France",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_FR&limit=120&filter=price%3A%5B100..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_fr",
+    "name": "eBay Global - Smart Watches Deals - eBay France",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_FR&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_fr",
+    "name": "eBay Global - Sneakers Deals - eBay France",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_FR&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_it",
+    "name": "eBay Global - Wireless Headphones Deals - eBay Italy",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_IT&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_it",
+    "name": "eBay Global - Laptops Deals - eBay Italy",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_IT&limit=120&filter=price%3A%5B100..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_it",
+    "name": "eBay Global - Smart Watches Deals - eBay Italy",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_IT&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_it",
+    "name": "eBay Global - Sneakers Deals - eBay Italy",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_IT&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_es",
+    "name": "eBay Global - Wireless Headphones Deals - eBay Spain",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_ES&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_es",
+    "name": "eBay Global - Laptops Deals - eBay Spain",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_ES&limit=120&filter=price%3A%5B100..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_es",
+    "name": "eBay Global - Smart Watches Deals - eBay Spain",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_ES&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_es",
+    "name": "eBay Global - Sneakers Deals - eBay Spain",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_ES&limit=120&filter=price%3A%5B20..%5D%2CpriceCurrency%3AEUR&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_headphones_au",
+    "name": "eBay Global - Wireless Headphones Deals - eBay Australia",
+    "url": "ebay://browse?q=wireless+headphones&marketplace_id=EBAY_AU&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AAUD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Ccharger+only%7Ccase+only%7Cleft+earbud%7Cright+earbud%7Csingle+earbud%7Creplacement+earbud%7Cear+pads+only%7Cear+cushions+only%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_laptops_au",
+    "name": "eBay Global - Laptops Deals - eBay Australia",
+    "url": "ebay://browse?q=laptop&marketplace_id=EBAY_AU&limit=120&filter=price%3A%5B150..%5D%2CpriceCurrency%3AAUD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cscreen+only%7Clcd+only%7Ckeyboard+only%7Cbattery+only%7Ccharger+only%7Cpalmrest%7Cmotherboard%7Cram+only%7Cssd+only%7Chard+drive+only%7Ccover+only%7Chinge+only%7Ccable+only%7Crepair%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_smart_watches_au",
+    "name": "eBay Global - Smart Watches Deals - eBay Australia",
+    "url": "ebay://browse?q=smart+watch&marketplace_id=EBAY_AU&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AAUD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cband+only%7Cwatch+band%7Cstrap+only%7Cwatch+strap%7Ccharger+only%7Cscreen+protector%7Ccase+only%7Creplacement+band%7Creplacement+strap%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_global_sneakers_au",
+    "name": "eBay Global - Sneakers Deals - eBay Australia",
+    "url": "ebay://browse?q=sneakers&marketplace_id=EBAY_AU&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AAUD&min_discount=15&exclude_keywords=parts+only%7Cfor+parts%7Cdefective%7Cnot+working%7Cbroken%7Cread+description%7Cempty+box%7Cbox+only%7Cmanual+only%7Creplacement+parts%7Cshoelaces%7Claces+only%7Cinsole+only%7Ccleaner+only%7Ctag+only%7Creplacement+sole%7Cspares%7Cspare+parts%7Cnon+working%7Cfor+repair%7Crepair+only%7Cfaulty%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+listing%7Ccase+only%7Ccharger+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Cscreen+protector%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_smartphones_us",
+    "name": "eBay Expansion - Smartphone Deals - eBay US",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_us",
+    "name": "eBay Expansion - Tablet Deals - eBay US",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AUSD&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_us",
+    "name": "eBay Expansion - Camera Deals - eBay US",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_us",
+    "name": "eBay Expansion - Monitor Deals - eBay US",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AUSD&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_us",
+    "name": "eBay Expansion - Computer Parts Deals - eBay US",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AUSD&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_us",
+    "name": "eBay Expansion - Gaming Console Deals - eBay US",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AUSD&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_us",
+    "name": "eBay Expansion - Beauty Deals - eBay US",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_us",
+    "name": "eBay Expansion - Bag Deals - eBay US",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AUSD&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_us",
+    "name": "eBay Expansion - Toy Deals - eBay US",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_us",
+    "name": "eBay Expansion - Car Accessory Deals - eBay US",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AUSD&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_us",
+    "name": "eBay Expansion - Fitness Deals - eBay US",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AUSD&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_us",
+    "name": "eBay Expansion - Home Appliance Deals - eBay US",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_US&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AUSD&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_smartphones_gb",
+    "name": "eBay Expansion - Smartphone Deals - eBay UK",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_gb",
+    "name": "eBay Expansion - Tablet Deals - eBay UK",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AGBP&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_gb",
+    "name": "eBay Expansion - Camera Deals - eBay UK",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_gb",
+    "name": "eBay Expansion - Monitor Deals - eBay UK",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AGBP&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_gb",
+    "name": "eBay Expansion - Computer Parts Deals - eBay UK",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AGBP&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_gb",
+    "name": "eBay Expansion - Gaming Console Deals - eBay UK",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AGBP&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_gb",
+    "name": "eBay Expansion - Beauty Deals - eBay UK",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_gb",
+    "name": "eBay Expansion - Bag Deals - eBay UK",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_gb",
+    "name": "eBay Expansion - Toy Deals - eBay UK",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_gb",
+    "name": "eBay Expansion - Car Accessory Deals - eBay UK",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AGBP&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_gb",
+    "name": "eBay Expansion - Fitness Deals - eBay UK",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AGBP&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_gb",
+    "name": "eBay Expansion - Home Appliance Deals - eBay UK",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_GB&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AGBP&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_smartphones_de",
+    "name": "eBay Expansion - Smartphone Deals - eBay Germany",
+    "url": "ebay://browse?q=smartphone&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_tablets_de",
+    "name": "eBay Expansion - Tablet Deals - eBay Germany",
+    "url": "ebay://browse?q=tablet+ipad&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B60..%5D%2CpriceCurrency%3AEUR&min_price=60&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_cameras_de",
+    "name": "eBay Expansion - Camera Deals - eBay Germany",
+    "url": "ebay://browse?q=digital+camera+mirrorless&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_monitors_de",
+    "name": "eBay Expansion - Monitor Deals - eBay Germany",
+    "url": "ebay://browse?q=computer+monitor&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B50..%5D%2CpriceCurrency%3AEUR&min_price=50&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_computer_parts_de",
+    "name": "eBay Expansion - Computer Parts Deals - eBay Germany",
+    "url": "ebay://browse?q=graphics+card+ssd+motherboard&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B30..%5D%2CpriceCurrency%3AEUR&min_price=30&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_gaming_consoles_de",
+    "name": "eBay Expansion - Gaming Console Deals - eBay Germany",
+    "url": "ebay://browse?q=gaming+console+playstation+xbox+nintendo&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B80..%5D%2CpriceCurrency%3AEUR&min_price=80&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_beauty_de",
+    "name": "eBay Expansion - Beauty Deals - eBay Germany",
+    "url": "ebay://browse?q=beauty+skincare+makeup+perfume&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_bags_de",
+    "name": "eBay Expansion - Bag Deals - eBay Germany",
+    "url": "ebay://browse?q=handbag+backpack&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AEUR&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_toys_de",
+    "name": "eBay Expansion - Toy Deals - eBay Germany",
+    "url": "ebay://browse?q=lego+toys+action+figures&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_auto_accessories_de",
+    "name": "eBay Expansion - Car Accessory Deals - eBay Germany",
+    "url": "ebay://browse?q=car+accessories&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B10..%5D%2CpriceCurrency%3AEUR&min_price=10&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_fitness_de",
+    "name": "eBay Expansion - Fitness Deals - eBay Germany",
+    "url": "ebay://browse?q=fitness+equipment+gym+yoga&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B15..%5D%2CpriceCurrency%3AEUR&min_price=15&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "ebay_expansion_home_appliances_de",
+    "name": "eBay Expansion - Home Appliance Deals - eBay Germany",
+    "url": "ebay://browse?q=home+appliances+vacuum+cleaner+kitchen&marketplace_id=EBAY_DE&limit=120&filter=price%3A%5B25..%5D%2CpriceCurrency%3AEUR&min_price=25&min_discount=15&exclude_keywords=parts%7Cbroken%7Cnot+working%7Cfor+repair%7Cempty+box%7Ccase+only%7Cmanual+only%7Cscreen+protector%7Ccharger+only%7Cspares%7Cfor+parts%7Cparts+only%7Cspare+parts%7Cnon+working%7Crepair+only%7Cfaulty%7Cdefective%7Cdamaged%7Cuntested%7Cunknown+condition%7Cas+is%7Cread+description%7Cread+listing%7Cbox+only%7Ccable+only%7Ccover+only%7Cshell+only%7Chousing+only%7Ctempered+glass%7Creplacement%7Cersatz%7Cmainboard%7Clogic+board%7Cmotherboard+replacement%7Clcd+screen+only%7Cdisplay+only",
+    "adapter": "ebay_browse_api",
+    "enabled": true,
+    "replaceOnSync": false
+  }
+]

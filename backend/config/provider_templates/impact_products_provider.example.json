@@ -1,0 +1,8 @@
+{
+  "id": "impact_products_global",
+  "name": "Impact products global feed",
+  "url": "https://provider.example.com/impact-products.csv",
+  "adapter": "impact_products",
+  "enabled": true,
+  "replaceOnSync": false
+}

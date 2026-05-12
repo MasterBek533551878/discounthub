@@ -1,0 +1,18 @@
+[
+  {
+    "id": "provider_1",
+    "name": "Provider 1 official feed",
+    "url": "https://provider-1.example.com/products.json",
+    "adapter": "generic_products",
+    "enabled": true,
+    "replaceOnSync": false
+  },
+  {
+    "id": "provider_2",
+    "name": "Provider 2 official feed",
+    "url": "https://provider-2.example.com/merchant.json",
+    "adapter": "google_merchant",
+    "enabled": true,
+    "replaceOnSync": false
+  }
+]

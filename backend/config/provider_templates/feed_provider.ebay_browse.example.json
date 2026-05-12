@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "id": "ebay_browse_headphones",
+      "name": "eBay Browse API - Headphones",
+      "url": "ebay://browse?q=wireless%20headphones&marketplace_id=EBAY_US&limit=50&sort=price",
+      "adapter": "ebay_browse_api",
+      "enabled": false,
+      "replaceOnSync": false
+    }
+  ]
+}

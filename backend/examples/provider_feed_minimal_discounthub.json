@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "id": "provider_product_001",
+      "title": "Example Product",
+      "description": "Official feed example product.",
+      "imageUrl": "https://example.com/image.jpg",
+      "platform": "ProviderName",
+      "category": "Electronics",
+      "oldPrice": 99.99,
+      "currentPrice": 59.99,
+      "currency": "USD",
+      "productUrl": "https://provider.example.com/product/001",
+      "affiliateUrl": "https://provider.example.com/product/001?ref=discounthub",
+      "rating": 4.5,
+      "reviewCount": 100,
+      "freeShipping": true,
+      "verified": true,
+      "shipsTo": ["US", "UZ", "UK"],
+      "hotDeal": true,
+      "lowestPrice": false
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "provider": "Google Merchant style feed example",
+  "items": [
+    {
+      "id": "gm_001",
+      "title": "Smart LED Desk Lamp",
+      "description": "Adjustable desk lamp with USB charging, timer and warm/cold light modes.",
+      "image_link": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=1200",
+      "link": "https://example.com/product/smart-led-desk-lamp",
+      "ads_redirect": "https://example.com/product/smart-led-desk-lamp?ref=discounthub",
+      "brand": "HomeLite",
+      "product_type": "Home",
+      "price": "USD 49.99",
+      "sale_price": "USD 27.99",
+      "rating": 4.7,
+      "review_count": 920,
+      "shipping_country": "US,UZ,DE,UK",
+      "free_shipping": "yes"
+    }
+  ]
+}

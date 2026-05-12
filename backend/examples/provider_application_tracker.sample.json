@@ -1,0 +1,28 @@
+{
+  "providers": [
+    {
+      "id": "ebay_partner_network",
+      "name": "eBay Partner Network",
+      "status": "not_applied",
+      "accountEmail": "",
+      "signupUrl": "",
+      "docsUrl": "https://developer.ebay.com/api-docs/buy/browse/overview.html",
+      "feedOrApiUrl": "",
+      "authMethod": "oauth",
+      "adapter": "ebay_browse_api",
+      "notes": "Apply first. Start with Browse API."
+    },
+    {
+      "id": "awin",
+      "name": "Awin",
+      "status": "not_applied",
+      "accountEmail": "",
+      "signupUrl": "",
+      "docsUrl": "https://success.awin.com/s/article/How-can-I-access-a-Product-Feed",
+      "feedOrApiUrl": "",
+      "authMethod": "account_feed_access",
+      "adapter": "awin_products",
+      "notes": "Need advertiser/product feed access."
+    }
+  ]
+}

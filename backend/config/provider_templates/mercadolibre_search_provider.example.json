@@ -1,0 +1,8 @@
+{
+  "id": "mercadolibre_mx_headphones",
+  "name": "Mercado Libre Mexico - Wireless Headphones",
+  "url": "mercadolibre://search?site_id=MLM&q=audifonos+bluetooth&limit=50&min_price=150&free_shipping=true",
+  "adapter": "mercadolibre_search_api",
+  "enabled": true,
+  "replaceOnSync": false
+}

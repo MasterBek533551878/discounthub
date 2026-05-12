@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "id": "official_partner_feed_001",
+      "name": "Official partner feed example",
+      "url": "https://example.com/discount-feed.json",
+      "adapter": "auto",
+      "enabled": false,
+      "replaceOnSync": false
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "cj_products_global",
+  "name": "CJ products global feed",
+  "url": "https://provider.example.com/cj-products.csv",
+  "adapter": "cj_products",
+  "enabled": true,
+  "replaceOnSync": false
+}
