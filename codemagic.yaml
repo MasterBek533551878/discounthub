@@ -63,11 +63,7 @@ workflows:
           runner = project.targets.find { |target| target.name == 'Runner' }
           raise 'Runner target not found in ios/Runner.xcodeproj' unless runner
 
-          tests = project.targets.find { |target| target.name == 'RunnerTests' }
-          if tests
-            puts 'Removing RunnerTests target from CI archive project copy'
-            tests.remove_from_project
-          end
+          puts 'Keeping RunnerTests target so CocoaPods Podfile stays valid'
 
           runner.build_configurations.each do |config|
             config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'uz.discounthub.app'
