@@ -25,6 +25,7 @@ workflows:
         FLUTTER_BUILD_NAME: "1.0.0"
         FLUTTER_BUILD_NUMBER: "3"
         ASC_KEY_ID: "27Z73JY49N"
+        ASC_ISSUER_ID: "9e428926-ab1d-408c-b511-2723f2fed800"
 
     triggering:
       events:
@@ -52,38 +53,23 @@ workflows:
           set -euo pipefail
 
           : "${ASC_KEY_ID:?Missing ASC_KEY_ID in codemagic.yaml environment vars}"
-          : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID in Codemagic environment group appstore_credentials}"
+          : "${ASC_ISSUER_ID:?Missing ASC_ISSUER_ID in codemagic.yaml environment vars}"
 
-          set +e
-          ASC_ISSUER_ID="$(python3 <<'PY'
+          if [ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ] && [ "$APP_STORE_CONNECT_ISSUER_ID" != "$ASC_ISSUER_ID" ]; then
+            echo "Ignoring APP_STORE_CONNECT_ISSUER_ID from Codemagic env group; using ASC_ISSUER_ID from codemagic.yaml."
+          fi
+
+          python3 <<'PY'
           import os
           import re
           import sys
 
-          raw = os.environ.get("APP_STORE_CONNECT_ISSUER_ID", "")
-          issuer = raw.strip().strip('"').strip("'")
-          issuer = issuer.replace("\ufeff", "").replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\u2060", "")
-          issuer = "".join(issuer.split())
-
+          issuer = os.environ.get("ASC_ISSUER_ID", "").strip()
           if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", issuer):
-              print(f"APP_STORE_CONNECT_ISSUER_ID is not a clean UUID after trimming. Length={len(issuer)}. Copy the full Issuer ID from App Store Connect > Users and Access > Integrations > App Store Connect API.", file=sys.stderr)
+              print(f"ASC_ISSUER_ID in codemagic.yaml is not a valid UUID. Length={len(issuer)}.", file=sys.stderr)
               sys.exit(64)
-
-          print(issuer)
+          print(f"App Store Connect Issuer ID format: OK, length {len(issuer)}.")
           PY
-          )"
-          ASC_ISSUER_STATUS=$?
-          set -e
-          if [ "$ASC_ISSUER_STATUS" -ne 0 ]; then
-            exit "$ASC_ISSUER_STATUS"
-          fi
-          if [ -z "$ASC_ISSUER_ID" ]; then
-            echo "APP_STORE_CONNECT_ISSUER_ID became empty after normalization. Replace it in Codemagic env group appstore_credentials."
-            exit 64
-          fi
-          export ASC_ISSUER_ID
-
-          echo "App Store Connect Issuer ID format: OK, length ${#ASC_ISSUER_ID}."
 
           if [ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}" ] && [ "$APP_STORE_CONNECT_KEY_IDENTIFIER" != "$ASC_KEY_ID" ]; then
             echo "Ignoring APP_STORE_CONNECT_KEY_IDENTIFIER=$APP_STORE_CONNECT_KEY_IDENTIFIER from Codemagic env group; using ASC_KEY_ID=$ASC_KEY_ID from codemagic.yaml."
@@ -224,36 +210,7 @@ workflows:
           set -euo pipefail
 
           : "${ASC_KEY_ID:?Missing ASC_KEY_ID}"
-          : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID}"
-
-          set +e
-          ASC_ISSUER_ID="$(python3 <<'PY'
-          import os
-          import re
-          import sys
-
-          raw = os.environ.get("APP_STORE_CONNECT_ISSUER_ID", "")
-          issuer = raw.strip().strip('"').strip("'")
-          issuer = issuer.replace("\ufeff", "").replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\u2060", "")
-          issuer = "".join(issuer.split())
-
-          if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", issuer):
-              print(f"APP_STORE_CONNECT_ISSUER_ID is not a clean UUID after trimming. Length={len(issuer)}.", file=sys.stderr)
-              sys.exit(64)
-
-          print(issuer)
-          PY
-          )"
-          ASC_ISSUER_STATUS=$?
-          set -e
-          if [ "$ASC_ISSUER_STATUS" -ne 0 ]; then
-            exit "$ASC_ISSUER_STATUS"
-          fi
-          if [ -z "$ASC_ISSUER_ID" ]; then
-            echo "APP_STORE_CONNECT_ISSUER_ID became empty after normalization. Replace it in Codemagic env group appstore_credentials."
-            exit 64
-          fi
-          export ASC_ISSUER_ID
+          : "${ASC_ISSUER_ID:?Missing ASC_ISSUER_ID}"
 
           export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
           if [ ! -f "$ASC_PRIVATE_KEY_PATH" ]; then
