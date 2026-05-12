@@ -44,7 +44,35 @@ workflows:
 
       - name: Set up iOS code signing
         script: |
-          xcode-project use-profiles
+          set -euo pipefail
+
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "Searching DiscountHub App Store provisioning profile in: $PROFILES_DIR"
+
+          PROFILE_PATH=""
+          while IFS= read -r -d '' profile; do
+            security cms -D -i "$profile" > /tmp/profile.plist
+            PROFILE_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" /tmp/profile.plist | sed 's/^[^.]*\.//')
+            PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" /tmp/profile.plist)
+            PROFILE_METHOD=$(/usr/libexec/PlistBuddy -c "Print :ProvisionsAllDevices" /tmp/profile.plist 2>/dev/null || true)
+            echo "Found profile: $PROFILE_NAME | bundle: $PROFILE_BUNDLE_ID"
+
+            if [ "$PROFILE_BUNDLE_ID" = "$BUNDLE_ID" ]; then
+              PROFILE_PATH="$profile"
+              echo "Using profile: $PROFILE_NAME"
+              break
+            fi
+          done < <(find "$PROFILES_DIR" -name "*.mobileprovision" -print0)
+
+          if [ -z "$PROFILE_PATH" ]; then
+            echo "No provisioning profile found for $BUNDLE_ID"
+            exit 1
+          fi
+
+          echo "Applying signing only to ios/Runner.xcodeproj"
+          xcode-project use-profiles \
+            --project ios/Runner.xcodeproj \
+            --profile "$PROFILE_PATH"
 
       - name: Build iOS IPA
         script: |
