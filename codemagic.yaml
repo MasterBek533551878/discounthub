@@ -8,8 +8,6 @@ workflows:
       app_store_connect: discounthub_app_store
 
     environment:
-      groups:
-        - appstore_credentials
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -23,7 +21,7 @@ workflows:
         IOS_PROFILE_NAME: "DiscountHub App Store Codemagic"
         DISCOUNTHUB_API_BASE_URL: "https://api.discounthub.uz"
         FLUTTER_BUILD_NAME: "1.0.0"
-        FLUTTER_BUILD_NUMBER: "2"
+        FLUTTER_BUILD_NUMBER: "3"
 
     triggering:
       events:
@@ -45,35 +43,6 @@ workflows:
       - name: Analyze Flutter project
         script: |
           flutter analyze
-
-      - name: Check App Store Connect publishing credentials
-        script: |
-          set -euo pipefail
-
-          python3 <<'PY'
-          import os
-
-          required = [
-              "APP_STORE_CONNECT_PRIVATE_KEY",
-              "APP_STORE_CONNECT_KEY_IDENTIFIER",
-              "APP_STORE_CONNECT_ISSUER_ID",
-          ]
-          missing = [name for name in required if not os.environ.get(name)]
-          if missing:
-              raise SystemExit("Missing App Store Connect env vars: " + ", ".join(missing))
-
-          key = os.environ["APP_STORE_CONNECT_PRIVATE_KEY"].strip().strip('"').strip("'")
-          key = key.replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n").strip()
-
-          if not key.startswith("-----BEGIN PRIVATE KEY-----"):
-              raise SystemExit("APP_STORE_CONNECT_PRIVATE_KEY must start with -----BEGIN PRIVATE KEY-----. Paste raw .p8 contents, not base64 and not a file path.")
-          if not key.endswith("-----END PRIVATE KEY-----"):
-              raise SystemExit("APP_STORE_CONNECT_PRIVATE_KEY must end with -----END PRIVATE KEY-----. Paste the full raw .p8 contents.")
-
-          print("App Store Connect credentials are present and private key format looks valid.")
-          print("Key ID:", os.environ["APP_STORE_CONNECT_KEY_IDENTIFIER"])
-          print("Issuer ID:", os.environ["APP_STORE_CONNECT_ISSUER_ID"])
-          PY
 
       - name: Prepare iOS manual signing
         script: |
@@ -157,44 +126,14 @@ workflows:
             --dart-define=DISCOUNTHUB_API_BASE_URL=$DISCOUNTHUB_API_BASE_URL \
             --export-options-plist=/Users/builder/export_options.plist
 
-      - name: Upload IPA to App Store Connect manually
-        script: |
-          set -euo pipefail
-
-          IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -n 1)
-          if [ -z "$IPA_PATH" ]; then
-            echo "No IPA file found in build/ios/ipa"
-            exit 1
-          fi
-
-          echo "Uploading IPA manually with xcrun altool: $IPA_PATH"
-
-          PRIVATE_KEYS_DIR="$HOME/.appstoreconnect/private_keys"
-          mkdir -p "$PRIVATE_KEYS_DIR"
-          KEY_FILE="$PRIVATE_KEYS_DIR/AuthKey_${APP_STORE_CONNECT_KEY_IDENTIFIER}.p8"
-
-          python3 <<'PY'
-          import os
-          from pathlib import Path
-
-          key_id = os.environ["APP_STORE_CONNECT_KEY_IDENTIFIER"].strip()
-          key = os.environ["APP_STORE_CONNECT_PRIVATE_KEY"].strip().strip('"').strip("'")
-          key = key.replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n").strip()
-
-          path = Path.home() / ".appstoreconnect" / "private_keys" / f"AuthKey_{key_id}.p8"
-          path.write_text(key + "\n", encoding="utf-8")
-          path.chmod(0o600)
-          print(f"Wrote normalized App Store Connect key to {path}")
-          PY
-
-          xcrun altool --upload-app \
-            --type ios \
-            --file "$IPA_PATH" \
-            --apiKey "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --verbose
 
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
