@@ -54,6 +54,24 @@ workflows:
           : "${ASC_KEY_ID:?Missing ASC_KEY_ID in codemagic.yaml environment vars}"
           : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID in Codemagic environment group appstore_credentials}"
 
+          export ASC_ISSUER_ID="$(python3 <<'PY'
+          import os
+          import re
+
+          raw = os.environ.get("APP_STORE_CONNECT_ISSUER_ID", "")
+          issuer = raw.strip().strip('"').strip("'")
+          issuer = issuer.replace("\ufeff", "").replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\u2060", "")
+          issuer = "".join(issuer.split())
+
+          if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", issuer):
+              raise SystemExit(f"APP_STORE_CONNECT_ISSUER_ID is not a clean UUID after trimming. Length={len(issuer)}. Copy Issuer ID from App Store Connect > Users and Access > Integrations > App Store Connect API.")
+
+          print(issuer)
+          PY
+          )"
+
+          echo "App Store Connect Issuer ID format: OK, length ${#ASC_ISSUER_ID}."
+
           if [ -n "${APP_STORE_CONNECT_KEY_IDENTIFIER:-}" ] && [ "$APP_STORE_CONNECT_KEY_IDENTIFIER" != "$ASC_KEY_ID" ]; then
             echo "Ignoring APP_STORE_CONNECT_KEY_IDENTIFIER=$APP_STORE_CONNECT_KEY_IDENTIFIER from Codemagic env group; using ASC_KEY_ID=$ASC_KEY_ID from codemagic.yaml."
           fi
@@ -93,12 +111,12 @@ workflows:
           out_path.chmod(0o600)
           print(f"Prepared App Store Connect key file: {out_path}")
           print("Key ID:", key_id)
-          print("Issuer ID:", os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip())
+          print("Issuer ID format already validated by shell step")
           PY
 
           echo "Validating App Store Connect API access for $BUNDLE_ID..."
           app-store-connect apps list \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --issuer-id "$ASC_ISSUER_ID" \
             --key-id "$ASC_KEY_ID" \
             --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
             --bundle-id-identifier "$BUNDLE_ID" \
@@ -195,6 +213,22 @@ workflows:
           : "${ASC_KEY_ID:?Missing ASC_KEY_ID}"
           : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID}"
 
+          export ASC_ISSUER_ID="$(python3 <<'PY'
+          import os
+          import re
+
+          raw = os.environ.get("APP_STORE_CONNECT_ISSUER_ID", "")
+          issuer = raw.strip().strip('"').strip("'")
+          issuer = issuer.replace("\ufeff", "").replace("\u200b", "").replace("\u200c", "").replace("\u200d", "").replace("\u2060", "")
+          issuer = "".join(issuer.split())
+
+          if not re.fullmatch(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", issuer):
+              raise SystemExit(f"APP_STORE_CONNECT_ISSUER_ID is not a clean UUID after trimming. Length={len(issuer)}.")
+
+          print(issuer)
+          PY
+          )"
+
           export ASC_PRIVATE_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
           if [ ! -f "$ASC_PRIVATE_KEY_PATH" ]; then
             echo "Missing prepared key file at $ASC_PRIVATE_KEY_PATH"
@@ -210,7 +244,7 @@ workflows:
           echo "Uploading IPA to App Store Connect: $IPA_PATH"
           app-store-connect publish \
             --path "$IPA_PATH" \
-            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --issuer-id "$ASC_ISSUER_ID" \
             --key-id "$ASC_KEY_ID" \
             --private-key "@file:$ASC_PRIVATE_KEY_PATH" \
             --platform IOS \
