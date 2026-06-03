@@ -1,4 +1,4 @@
-workflows:
+﻿workflows:
   ios-app-store:
     name: iOS App Store Release
     max_build_duration: 60
@@ -22,8 +22,8 @@ workflows:
         APPLE_TEAM_ID: "Z8XC7UAF2N"
         IOS_PROFILE_NAME: "DiscountHub App Store Codemagic"
         DISCOUNTHUB_API_BASE_URL: "https://api.discounthub.uz"
-        FLUTTER_BUILD_NAME: "1.0.0"
-        FLUTTER_BUILD_NUMBER: "3"
+        FLUTTER_BUILD_NAME: "1.0.1"
+        FLUTTER_BUILD_NUMBER: "27"
         ASC_KEY_ID: "27Z73JY49N"
         ASC_ISSUER_ID: "9e428926-ab1d-408c-b511-2723f2fed800"
 
