@@ -6,7 +6,7 @@ import 'deals_data_source.dart';
 class ApiDealsDataSource implements DealsDataSource {
   ApiDealsDataSource({required this.apiClient});
 
-  static const int _maxPagesPerRefresh = 12;
+  static const int _maxPagesPerRefresh = 1;
 
   final DealsApiClient apiClient;
 
@@ -27,6 +27,7 @@ class ApiDealsDataSource implements DealsDataSource {
 
       for (final deal in page.deals) {
         if (_looksLikeDemoDeal(deal)) continue;
+        if (!deal.hasRealDiscount) continue;
         dealsById[deal.id] = deal;
       }
 

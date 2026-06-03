@@ -7,7 +7,8 @@ class DealApiQuery {
     this.platform,
     this.category,
     this.shipToCountry,
-    this.currency = 'USD',
+    this.monetizationMode,
+    this.currency = '',
     this.minDiscount = 0,
     this.maxPrice,
     this.minRating = 0,
@@ -22,6 +23,7 @@ class DealApiQuery {
   final String? platform;
   final String? category;
   final String? shipToCountry;
+  final String? monetizationMode;
   final String currency;
   final int minDiscount;
   final double? maxPrice;
@@ -34,15 +36,16 @@ class DealApiQuery {
 
   factory DealApiQuery.fromDealQuery(
     DealQuery query, {
-    String currency = 'USD',
+    String currency = '',
   }) {
     final filters = query.filters;
 
     return DealApiQuery(
       searchText: query.searchText,
-      platform: _emptyAllToNull(filters.platform),
+      platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
       category: _emptyAllToNull(filters.category),
       shipToCountry: _emptyAllToNull(filters.shipToCountry),
+      monetizationMode: _emptyAllToNull(filters.monetizationMode),
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
@@ -55,12 +58,13 @@ class DealApiQuery {
 
   factory DealApiQuery.fromFilters(
     DealFilters filters, {
-    String currency = 'USD',
+    String currency = '',
   }) {
     return DealApiQuery(
-      platform: _emptyAllToNull(filters.platform),
+      platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
       category: _emptyAllToNull(filters.category),
       shipToCountry: _emptyAllToNull(filters.shipToCountry),
+      monetizationMode: _emptyAllToNull(filters.monetizationMode),
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
@@ -76,6 +80,7 @@ class DealApiQuery {
     String? platform,
     String? category,
     String? shipToCountry,
+    String? monetizationMode,
     String? currency,
     int? minDiscount,
     double? maxPrice,
@@ -91,6 +96,7 @@ class DealApiQuery {
       platform: platform ?? this.platform,
       category: category ?? this.category,
       shipToCountry: shipToCountry ?? this.shipToCountry,
+      monetizationMode: monetizationMode ?? this.monetizationMode,
       currency: currency ?? this.currency,
       minDiscount: minDiscount ?? this.minDiscount,
       maxPrice: maxPrice ?? this.maxPrice,
@@ -120,6 +126,7 @@ class DealApiQuery {
     addTextParameter('platform', platform);
     addTextParameter('category', category);
     addTextParameter('ships_to', shipToCountry);
+    addTextParameter('monetization_mode', monetizationMode);
 
     final normalizedCurrency = currency.trim().toUpperCase();
     if (normalizedCurrency.isNotEmpty) {
@@ -143,6 +150,19 @@ class DealApiQuery {
     }
 
     return parameters;
+  }
+
+  static String? _publicMarketplaceFilter(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+
+    final lower = normalized.toLowerCase();
+    if (lower.startsWith('ebay')) return 'eBay';
+    if (lower.startsWith('aliexpress')) return 'AliExpress';
+    if (lower.startsWith('alibaba')) return 'Alibaba';
+    if (lower.startsWith('amazon')) return 'Amazon';
+
+    return normalized;
   }
 
   static String? _emptyAllToNull(String value) {

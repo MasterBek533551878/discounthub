@@ -45,6 +45,30 @@ class Settings(BaseSettings):
     ebay_campaign_id: str = ""
     ebay_reference_id: str = "discounthub"
 
+    # Awin product-feed integration. These values must stay server-side in backend/.env.
+    # The feed-list provider imports products from joined advertisers and stores
+    # advertiser names as normal marketplaces, so the mobile app filters update
+    # automatically after every successful sync.
+    awin_publisher_id: str = ""
+    awin_datafeed_api_key: str = ""
+    awin_feed_list_url: str = ""
+    awin_feed_list_endpoint_template: str = "https://productdata.awin.com/datafeed/list/apikey/{api_key}"
+    awin_feed_max_feeds: int = 20
+    awin_feed_max_items_per_feed: int = 80
+    awin_feed_min_discount_percent: int = 10
+
+    # Mercado Libre direct marketplace adapter. Public search endpoints may be
+    # blocked or require OAuth depending on site/account/app policy. Keep these
+    # values empty until an official Mercado Libre developer app is configured.
+    mercadolibre_access_token: str = ""
+
+    # Admitad publisher API. These values must stay server-side in backend/.env.
+    # Never put them into Flutter builds, APK/AAB/IPA, or public repository files.
+    admitad_client_id: str = ""
+    admitad_client_secret: str = ""
+    admitad_website_id: str = ""
+    admitad_api_base_url: str = "https://api.admitad.com"
+
     model_config = SettingsConfigDict(
         # Use the backend/.env file regardless of the shell working directory.
         # Windows PowerShell 5.1 can write UTF-8 files with BOM, so read with utf-8-sig.

@@ -321,7 +321,7 @@ class _PriceCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               Text(
-                UserSettingsStore.formatUsd(deal.currentPrice),
+                UserSettingsStore.formatDealPrice(deal.currentPrice, deal.currency),
                 style: const TextStyle(
                   color: AppTheme.primary,
                   fontSize: 34,
@@ -333,7 +333,7 @@ class _PriceCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
-                    UserSettingsStore.formatUsd(deal.oldPrice),
+                    UserSettingsStore.formatDealPrice(deal.oldPrice, deal.currency),
                     style: const TextStyle(
                       color: AppTheme.mutedText,
                       fontSize: 16,
@@ -352,16 +352,17 @@ class _PriceCard extends StatelessWidget {
               if (deal.savedAmount > 0)
                 _SoftBadge(
                   label: AppStrings.saveAmount(
-                    UserSettingsStore.formatUsd(deal.savedAmount),
+                    UserSettingsStore.formatDealPrice(deal.savedAmount, deal.currency),
                   ),
                   color: AppTheme.secondary,
                   backgroundColor: AppTheme.softGreen,
                 ),
-              _SoftBadge(
-                label: '-${deal.discountPercent}%',
-                color: AppTheme.dealRed,
-                backgroundColor: AppTheme.softRed,
-              ),
+              if (deal.hasRealDiscount)
+                _SoftBadge(
+                  label: '-${deal.discountPercent}%',
+                  color: AppTheme.dealRed,
+                  backgroundColor: AppTheme.softRed,
+                ),
             ],
           ),
         ],

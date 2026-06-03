@@ -42,6 +42,7 @@ class FeedProvidersService:
             adapter=payload.adapter,
             enabled=payload.enabled,
             replace_on_sync=payload.replace_on_sync,
+            monetization_mode=payload.monetization_mode,
             last_sync_at=existing.last_sync_at if existing else None,
             last_status=existing.last_status if existing else None,
             last_message=existing.last_message if existing else None,
@@ -105,6 +106,18 @@ class FeedProvidersService:
                 replace=provider.replace_on_sync,
                 timeout_seconds=timeout_seconds,
             )
+            for item in import_request.items:
+                if not item.provider_id:
+                    item.provider_id = provider.id
+                if item.monetization_mode is None:
+                    affiliate_url = str(item.affiliate_url or "").strip()
+                    product_url = str(item.product_url or "").strip()
+                    if provider.monetization_mode != "direct":
+                        item.monetization_mode = provider.monetization_mode
+                    elif affiliate_url and affiliate_url != product_url:
+                        item.monetization_mode = "affiliate"
+                    else:
+                        item.monetization_mode = "direct"
             imported_count = deals_service.import_deals(
                 import_request.items,
                 replace=import_request.replace,
@@ -192,6 +205,7 @@ class FeedProvidersService:
             adapter=provider.adapter,
             enabled=provider.enabled,
             replace_on_sync=provider.replace_on_sync,
+            monetization_mode=provider.monetization_mode,
             last_sync_at=provider.last_sync_at,
             last_status=provider.last_status,
             last_message=provider.last_message,

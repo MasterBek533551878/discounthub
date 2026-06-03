@@ -152,32 +152,33 @@ class _DealImage extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 9,
-            left: 9,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.secondary,
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.navy.withValues(alpha: 0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+          if (deal.hasRealDiscount)
+            Positioned(
+              top: 9,
+              left: 9,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondary,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.navy.withValues(alpha: 0.12),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '-${deal.discountPercent}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
                   ),
-                ],
-              ),
-              child: Text(
-                '-${deal.discountPercent}%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
-          ),
           Positioned(
             right: 8,
             bottom: 8,
@@ -276,7 +277,7 @@ class _PriceLine extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
         Text(
-          UserSettingsStore.formatUsd(deal.currentPrice),
+          UserSettingsStore.formatDealPrice(deal.currentPrice, deal.currency),
           style: const TextStyle(
             color: AppTheme.primary,
             fontSize: 23,
@@ -288,7 +289,7 @@ class _PriceLine extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 3),
             child: Text(
-              UserSettingsStore.formatUsd(deal.oldPrice),
+              UserSettingsStore.formatDealPrice(deal.oldPrice, deal.currency),
               style: const TextStyle(
                 color: AppTheme.mutedText,
                 fontSize: 13,

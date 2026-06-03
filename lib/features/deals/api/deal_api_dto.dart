@@ -26,6 +26,14 @@ class DealApiDto {
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
+      providerId: _nullableString(json['providerId'] ?? json['provider_id']),
+      monetizationMode: _string(
+        json['monetizationMode'] ?? json['monetization_mode'],
+        fallback: 'direct',
+      ),
+      hotDeal: _bool(json['hotDeal'] ?? json['hot_deal']),
+      lowestPrice: _bool(json['lowestPrice'] ?? json['lowest_price']),
+      dealScore: _int(json['dealScore'] ?? json['deal_score']),
     );
   }
 
@@ -51,6 +59,12 @@ class DealApiDto {
     if (value is String && value.trim().isNotEmpty) return value.trim();
     if (value is num) return value.toString();
     return fallback;
+  }
+
+  static String? _nullableString(dynamic value) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is num) return value.toString();
+    return null;
   }
 
   static double _double(dynamic value) {

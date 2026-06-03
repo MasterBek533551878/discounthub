@@ -34,7 +34,8 @@ GoRouter createAppRouter() {
         path: '/deal/:id',
         builder: (context, state) {
           final id = state.pathParameters['id'];
-          final deal = _findDealById(id);
+          final extraDeal = state.extra is Deal ? state.extra as Deal : null;
+          final deal = extraDeal ?? _findDealById(id);
 
           if (deal == null) {
             return const _NotFoundPage();

@@ -11,19 +11,30 @@ $TempRoot = Join-Path $env:TEMP ("discounthub_clean_" + [Guid]::NewGuid().ToStri
 $excludeDirPatterns = @(
   ".git/",
   ".idea/",
+  ".vscode/",
   ".dart_tool/",
+  ".gradle/",
   "build/",
+  "coverage/",
   "backend/.venv/",
   "backend/data/",
   "backend/exports/",
   "backend/logs/",
+  "android/.gradle/",
   "android/app/build/",
-  "ios/Pods/"
+  "ios/build/",
+  "ios/Pods/",
+  "linux/build/",
+  "macos/build/",
+  "windows/build/"
 )
 
-$excludeFilePatterns = @(
-  ".env",
-  "backend/.env",
+$excludeExactFiles = @(
+  ".flutter-plugins-dependencies",
+  ".metadata",
+  ".packages",
+  "android/key.properties",
+  "android/local.properties",
   "lib.zip"
 )
 
@@ -32,20 +43,35 @@ $excludeExtensions = @(
   ".sqlite",
   ".sqlite3",
   ".db",
-  ".pyc"
+  ".db-shm",
+  ".db-wal",
+  ".pyc",
+  ".pyo",
+  ".jks",
+  ".keystore",
+  ".p8",
+  ".iml"
 )
 
-function Test-ExcludedFile($RelativePath, $Extension) {
+function Test-ExcludedFile($RelativePath, $Extension, $LeafName) {
   $normalized = $RelativePath.Replace('\', '/')
+  $lower = $normalized.ToLowerInvariant()
+  $leafLower = $LeafName.ToLowerInvariant()
 
   foreach ($dir in $excludeDirPatterns) {
-    if ($normalized.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if ($lower.StartsWith($dir.ToLowerInvariant())) {
       return $true
     }
   }
 
-  foreach ($file in $excludeFilePatterns) {
-    if ($normalized.Equals($file, [System.StringComparison]::OrdinalIgnoreCase)) {
+  foreach ($file in $excludeExactFiles) {
+    if ($lower.Equals($file.ToLowerInvariant())) {
+      return $true
+    }
+  }
+
+  if ($leafLower -eq ".env" -or $leafLower.StartsWith(".env.")) {
+    if ($leafLower -ne ".env.example" -and $leafLower -ne ".env.production.example") {
       return $true
     }
   }
@@ -56,15 +82,19 @@ function Test-ExcludedFile($RelativePath, $Extension) {
     }
   }
 
+  if ($lower.Contains("/__pycache__/")) {
+    return $true
+  }
+
   return $false
 }
 
 try {
   New-Item -ItemType Directory -Force -Path $TempRoot | Out-Null
 
-  Get-ChildItem -Path $ProjectRootPath -Recurse -File | ForEach-Object {
+  Get-ChildItem -Path $ProjectRootPath -Recurse -File -Force | ForEach-Object {
     $relative = $_.FullName.Substring($ProjectRootPath.Length + 1)
-    if (Test-ExcludedFile -RelativePath $relative -Extension $_.Extension) {
+    if (Test-ExcludedFile -RelativePath $relative -Extension $_.Extension -LeafName $_.Name) {
       return
     }
 

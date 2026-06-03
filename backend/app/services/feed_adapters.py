@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Any
 
@@ -155,47 +156,265 @@ class FeedAdapterService:
         }
 
     def _normalize_awin(self, item: dict[str, Any]) -> dict[str, Any]:
-        title = self._pick_string(item, "product_name", "productName", "name") or "Untitled product"
-        deep_link = self._pick_string(item, "deep_link", "deepLink", "aw_deep_link", "product_url") or "https://example.com/"
-        current = self._pick_number(item, "product_price", "price", "sale_price") or 1
-        old = self._pick_number(item, "rrp_price", "old_price", "was_price") or current
+        title = self._pick_string(
+            item,
+            "product_name",
+            "productName",
+            "name",
+            "title",
+            "aw_product_name",
+            "productname",
+        ) or "Untitled Awin product"
+        deep_link = self._pick_string(
+            item,
+            "aw_deep_link",
+            "deep_link",
+            "deepLink",
+            "deeplink",
+            "affiliate_url",
+            "tracking_url",
+            "product_url",
+            "productUrl",
+            "merchant_deep_link",
+            "merchant_product_url",
+            "product_link",
+            "click_url",
+            "clickout_url",
+            "link",
+            "url",
+        ) or "https://example.com/"
+        merchant_product_url = self._pick_string(
+            item,
+            "merchant_product_url",
+            "merchant_deep_link",
+            "product_url",
+            "url",
+            "productUrl",
+            "product_link",
+            "link",
+        ) or deep_link
+        current, old = self._awin_price_pair(item)
+        current = current or 1
+        old = old or current
+        image_url = self._pick_string(
+            item,
+            "merchant_image_url",
+            "aw_image_url",
+            "image_url",
+            "large_image",
+            "merchant_thumb_url",
+            "aw_thumb_url",
+            "thumbnail",
+            "thumbnail_url",
+            "image_link",
+            "imageUrl",
+            "picture",
+            "image",
+        ) or "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200"
+        platform = self._pick_string(
+            item,
+            "_awin_advertiser_name",
+            "advertiser_name",
+            "merchant_name",
+            "programme_name",
+            "program_name",
+            "shop",
+            "store",
+        ) or "Awin Merchant"
+        category = self._pick_string(
+            item,
+            "category_name",
+            "merchant_category",
+            "product_category",
+            "category",
+            "product_type",
+        ) or self._infer_awin_category(title=title, platform=platform)
+        brand = self._pick_string(item, "brand_name", "brand", "manufacturer")
+        description = self._pick_string(
+            item,
+            "description",
+            "product_description",
+            "product_short_description",
+            "short_description",
+            "merchant_product_description",
+        ) or title
+        if brand and brand.lower() not in description.lower():
+            description = f"{brand} · {description}"
+
+        merchant_id = self._pick_string(item, "_awin_advertiser_id", "advertiser_id", "merchant_id", "programme_id", "program_id") or platform
+        external_id = self._pick_string(item, "aw_product_id", "merchant_product_id", "product_id", "sku", "id") or self._stable_id(item, prefix="awin")
+        item_id = self._safe_key(f"{merchant_id}_{external_id}") or self._stable_id(item, prefix="awin")
+        discount = ((old - current) / old) if old > 0 else 0
 
         return {
-            "id": self._pick_string(item, "id", "product_id", "aw_product_id") or self._stable_id(item, prefix="awin"),
+            "id": f"awin_{item_id}",
             "title": title,
-            "description": self._pick_string(item, "description", "short_description") or title,
-            "imageUrl": self._pick_string(item, "image_url", "merchant_image_url") or "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200",
-            "platform": self._pick_string(item, "merchant_name", "advertiser_name") or "AwinMerchant",
-            "category": self._pick_string(item, "category_name", "merchant_category") or "Other",
-            "oldPrice": old,
-            "currentPrice": current,
+            "description": description,
+            "imageUrl": image_url,
+            "platform": platform,
+            "category": category,
+            "oldPrice": round(old, 2),
+            "currentPrice": round(current, 2),
             "currency": self._pick_currency(item) or "USD",
-            "productUrl": self._pick_string(item, "merchant_deep_link", "merchant_product_url") or deep_link,
+            "productUrl": merchant_product_url,
             "affiliateUrl": deep_link,
             "rating": self._pick_number(item, "average_rating", "rating") or 0,
             "reviewCount": int(self._pick_number(item, "review_count", "reviews") or 0),
-            "freeShipping": self._pick_bool(item, "free_shipping", "free_delivery"),
+            "freeShipping": self._pick_bool(item, "free_shipping", "free_delivery", "delivery_free"),
             "verified": True,
-            "shipsTo": self._pick_list(item, "ships_to", "countries"),
-            "hotDeal": True if old > current and ((old - current) / old) >= 0.3 else False,
-            "lowestPrice": self._pick_bool(item, "lowest_price", "lowestPrice"),
+            "shipsTo": self._pick_list(item, "ships_to", "countries", "shipping_countries", "_awin_feed_region"),
+            "hotDeal": discount >= 0.3,
+            "lowestPrice": self._pick_bool(item, "lowest_price", "lowestPrice", "best_price"),
         }
 
+    def _awin_price_pair(self, item: dict[str, Any]) -> tuple[float | None, float | None]:
+        # Awin feeds can be native Awin feeds or Google Merchant feeds. In Google
+        # format `sale_price` is the discounted price while `price` is the normal
+        # price. Awin native feeds may also provide `product_price_old`, `saving`,
+        # or `savings_percent`; derive the old price from those fields where possible.
+        sale_price = self._pick_number(
+            item,
+            "sale_price",
+            "saleprice",
+            "discount_price",
+            "discounted_price",
+            "offer_price",
+            "now_price",
+            "current_price",
+            "currentprice",
+        )
+        listed_price = self._pick_number(
+            item,
+            "product_price",
+            "search_price",
+            "store_price",
+            "price",
+            "normal_price",
+            "normalprice",
+            "amount",
+            "price_value",
+        )
+        old_price = self._pick_number(
+            item,
+            "product_price_old",
+            "productpriceold",
+            "rrp_price",
+            "rrp",
+            "old_price",
+            "oldprice",
+            "was_price",
+            "wasprice",
+            "list_price",
+            "listprice",
+            "original_price",
+            "originalprice",
+            "retail_price",
+            "retailprice",
+            "regular_price",
+            "regularprice",
+            "previous_price",
+            "previousprice",
+            "before_price",
+            "strikethrough_price",
+            "compare_at_price",
+        )
+        saving_amount = self._pick_number(
+            item,
+            "saving",
+            "savings",
+            "saving_amount",
+            "savings_amount",
+            "discount_amount",
+            "amount_saved",
+        )
+        saving_percent = self._pick_number(
+            item,
+            "savings_percent",
+            "saving_percent",
+            "discount_percent",
+            "discount_percentage",
+            "percentage_discount",
+            "percent_discount",
+        )
+
+        if sale_price and sale_price > 0:
+            current = sale_price
+            if old_price and old_price > current:
+                return current, old_price
+            if listed_price and listed_price > current:
+                return current, listed_price
+            derived_old = self._derive_old_price(current=current, saving_amount=saving_amount, saving_percent=saving_percent)
+            return current, derived_old or old_price or listed_price
+
+        current = listed_price
+        if current and current > 0 and (not old_price or old_price <= current):
+            derived_old = self._derive_old_price(current=current, saving_amount=saving_amount, saving_percent=saving_percent)
+            if derived_old and derived_old > current:
+                return current, derived_old
+        return current, old_price
+
+    def _derive_old_price(
+        self,
+        *,
+        current: float | None,
+        saving_amount: float | None,
+        saving_percent: float | None,
+    ) -> float | None:
+        if not current or current <= 0:
+            return None
+        if saving_amount and saving_amount > 0:
+            return current + saving_amount
+        if saving_percent and 0 < saving_percent < 100:
+            return current / (1 - (saving_percent / 100))
+        return None
+
+    def _infer_awin_category(self, *, title: str, platform: str) -> str:
+        text = f" {title} {platform} ".lower()
+        if any(value in text for value in ("laptop", "macbook", "computer", "pc ", "memory", "ssd", "proshop", "apple")):
+            return "Computers"
+        if any(value in text for value in ("phone", "smartwatch", "headphone", "camera", "electronics", "charger", "speaker")):
+            return "Electronics"
+        if any(value in text for value in ("shoe", "sneaker", "dress", "shirt", "jacket", "fashion", "zalando", "nelly", "foot locker", "calvin klein")):
+            return "Fashion"
+        if any(value in text for value in ("kitchen", "home", "vacuum", "bosch", "kitchenaid", "sharkninja", "furniture", "garden")):
+            return "Home"
+        if any(value in text for value in ("fitness", "sport", "bike", "outdoor", "decathlon", "snowboard")):
+            return "Sports"
+        if any(value in text for value in ("clinique", "beauty", "makeup", "cosmetic", "perfume", "lookfantastic", "douglas")):
+            return "Beauty"
+        if any(value in text for value in ("lego", "toy", "game")):
+            return "Toys"
+        return "Other"
 
     def _normalize_admitad(self, item: dict[str, Any]) -> dict[str, Any]:
         title = self._pick_string(item, "name", "title", "product_name", "productname") or "Untitled Admitad product"
-        product_url = self._pick_string(item, "url", "product_url", "producturl")
-        affiliate_url = self._pick_string(item, "gotolink", "go_to_link", "deeplink", "deep_link", "tracking_url") or product_url or "https://www.admitad.com/"
-        current = self._pick_number(item, "price", "sale_price", "current_price") or 1
-        old = self._pick_number(item, "oldprice", "old_price", "original_price", "rrp") or current
+        raw_product_url = self._pick_string(item, "url", "product_url", "producturl")
+        raw_affiliate_url = self._pick_string(item, "gotolink", "go_to_link", "deeplink", "deep_link", "tracking_url") or raw_product_url or "https://www.admitad.com/"
+        product_url = self._extract_aliexpress_product_url(raw_product_url or raw_affiliate_url or "") or raw_product_url
+        affiliate_url = self._repair_admitad_aliexpress_url(raw_affiliate_url, product_url) or raw_affiliate_url
+        current = self._pick_number(item, "price", "sale_price", "current_price", "product_price", "search_price") or 1
+        old = self._pick_number(item, "oldprice", "old_price", "original_price", "rrp", "retail_price", "was_price") or current
+        raw_id = self._pick_string(item, "id", "product_id", "productid", "sku") or self._stable_id(item, prefix="admitad")
+        safe_id = raw_id if raw_id.startswith("admitad_") else f"admitad_{self._safe_key(raw_id)}"
+        platform = self._pick_string(
+            item,
+            "_discounthub_platform_name",
+            "platform_name",
+            "shop",
+            "merchant",
+            "merchant_name",
+            "vendor",
+            "campaign_name",
+        ) or "Admitad Merchant"
+        category = self._pick_string(item, "category", "category_name", "categoryname") or self._infer_awin_category(title=title, platform=platform)
 
         return {
-            "id": self._pick_string(item, "id", "product_id", "productid", "sku") or self._stable_id(item, prefix="admitad"),
+            "id": safe_id,
             "title": title,
             "description": self._pick_string(item, "description", "short_description") or title,
             "imageUrl": self._pick_string(item, "picture", "image", "image_url", "imageurl") or "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200",
-            "platform": self._pick_string(item, "shop", "merchant", "merchant_name", "vendor", "campaign_name") or "Admitad Merchant",
-            "category": self._pick_string(item, "category", "category_name", "categoryname") or "Other",
+            "platform": platform,
+            "category": category,
             "oldPrice": old,
             "currentPrice": current,
             "currency": self._pick_currency(item) or "USD",
@@ -370,8 +589,12 @@ class FeedAdapterService:
 
     def _normalize_ebay_browse(self, item: dict[str, Any]) -> dict[str, Any]:
         title = self._pick_string(item, "title") or "Untitled eBay item"
-        product_url = self._pick_string(item, "itemWebUrl") or "https://www.ebay.com/"
-        affiliate_url = self._pick_string(item, "itemAffiliateWebUrl") or product_url
+        item_id = self._pick_string(item, "itemId", "legacyItemId") or self._stable_id(item, prefix="ebay")
+        marketplace_id = self._pick_string(item, "listingMarketplaceId") or "eBay"
+        raw_product_url = self._pick_string(item, "itemWebUrl") or "https://www.ebay.com/"
+        product_url = self._canonical_ebay_item_url(raw_product_url, item_id=item_id, marketplace_id=marketplace_id) or raw_product_url
+        raw_affiliate_url = self._pick_string(item, "itemAffiliateWebUrl")
+        affiliate_url = raw_affiliate_url or product_url
         price = self._nested_number(item, "price", "value") or 1
         currency = self._nested_string(item, "price", "currency") or "USD"
 
@@ -412,8 +635,6 @@ class FeedAdapterService:
             image_url = self._pick_string(image, "imageUrl") or image_url
 
         discount = ((old - current) / old) if old > 0 else 0
-        item_id = self._pick_string(item, "itemId", "legacyItemId") or self._stable_id(item, prefix="ebay")
-        marketplace_id = self._pick_string(item, "listingMarketplaceId") or "eBay"
         marketplace_key = re.sub(r"[^A-Z0-9]+", "_", marketplace_id.upper()).strip("_").lower() or "global"
 
         return {
@@ -436,6 +657,101 @@ class FeedAdapterService:
             "hotDeal": discount >= 0.3,
             "lowestPrice": False,
         }
+
+    def _repair_admitad_aliexpress_url(self, url: str | None, product_url: str | None) -> str | None:
+        if not url:
+            return None
+        parsed = urllib.parse.urlparse(url.strip())
+        host = parsed.netloc.lower()
+        if not any(domain in host for domain in ("rzekl.com", "rztekl.com", "ad.admitad.com")):
+            return None
+
+        target = self._extract_aliexpress_product_url(product_url or "")
+        params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+        if not target:
+            ulp_values = params.get("ulp")
+            if ulp_values:
+                target = self._extract_aliexpress_product_url(ulp_values[0])
+        if not target:
+            return None
+
+        # Store canonical Admitad deeplinks instead of shortened rzekl/rztekl
+        # links. The canonical format is more reliable for product-level landing
+        # pages and keeps the same tracking code/path.
+        params["ulp"] = [target]
+        query = urllib.parse.urlencode(params, doseq=True)
+        path = parsed.path or "/"
+        return urllib.parse.urlunparse(("https", "ad.admitad.com", path, "", query, ""))
+
+    def _extract_aliexpress_product_url(self, value: str | None) -> str | None:
+        if not value:
+            return None
+
+        candidates = [value]
+        current = value
+        for _ in range(3):
+            decoded = urllib.parse.unquote(current)
+            if decoded == current:
+                break
+            candidates.append(decoded)
+            current = decoded
+
+        for candidate in candidates:
+            parsed = urllib.parse.urlparse(candidate)
+            host = parsed.netloc.lower()
+            if "aliexpress." in host and "/item/" in parsed.path:
+                return urllib.parse.urlunparse(parsed._replace(query="", fragment=""))
+
+            nested_params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+            for key in ("dl_target_url", "target_url", "url", "ulp"):
+                for nested in nested_params.get(key, []):
+                    found = self._extract_aliexpress_product_url(nested)
+                    if found:
+                        return found
+
+            match = re.search(r"https?://(?:www\.)?aliexpress\.[^\s'\"<>]+/item/\d+\.html", candidate)
+            if match:
+                return match.group(0).split("?")[0]
+
+        return None
+
+    def _canonical_ebay_item_url(self, url: str | None, *, item_id: str, marketplace_id: str) -> str | None:
+        legacy_id = self._ebay_legacy_item_id(item_id)
+        if not legacy_id:
+            return None
+
+        host = self._ebay_marketplace_host(marketplace_id)
+        if url:
+            parsed = urllib.parse.urlparse(url)
+            if "ebay." in parsed.netloc.lower():
+                host = parsed.netloc
+        return f"https://{host}/itm/{legacy_id}"
+
+    def _ebay_legacy_item_id(self, item_id: str | None) -> str | None:
+        if not item_id:
+            return None
+        text = str(item_id)
+        match = re.search(r"\|(\d{6,})\|", text)
+        if match:
+            return match.group(1)
+        match = re.search(r"(\d{6,})", text)
+        if match:
+            return match.group(1)
+        return None
+
+    def _ebay_marketplace_host(self, marketplace_id: str) -> str:
+        mapping = {
+            "EBAY_US": "www.ebay.com",
+            "EBAY_GB": "www.ebay.co.uk",
+            "EBAY_DE": "www.ebay.de",
+            "EBAY_FR": "www.ebay.fr",
+            "EBAY_IT": "www.ebay.it",
+            "EBAY_ES": "www.ebay.es",
+            "EBAY_AU": "www.ebay.com.au",
+            "EBAY_CA": "www.ebay.ca",
+            "EBAY_MOTORS_US": "www.ebay.com",
+        }
+        return mapping.get(str(marketplace_id or "").upper(), "www.ebay.com")
 
     def _nested_value(self, item: dict[str, Any], *path: str) -> Any:
         current: Any = item
@@ -539,6 +855,10 @@ class FeedAdapterService:
             if isinstance(value, str):
                 return [part.upper().strip() for part in re.split(r"[,;|]", value) if part.strip()]
         return []
+
+    def _safe_key(self, value: str) -> str:
+        key = re.sub(r"[^a-zA-Z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+        return key[:96]
 
     def _stable_id(self, item: dict[str, Any], *, prefix: str) -> str:
         source = "|".join(

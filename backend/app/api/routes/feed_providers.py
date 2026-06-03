@@ -34,7 +34,7 @@ def admin_upsert_feed_provider(payload: FeedProviderUpsertRequest) -> FeedProvid
 
 @router.post("/sync-all", response_model=FeedProviderSyncResponse, response_model_by_alias=True)
 def admin_sync_all_feed_providers(
-    timeout_seconds: Annotated[int, Query(ge=3, le=60)] = 20,
+    timeout_seconds: Annotated[int, Query(ge=3, le=300)] = 20,
 ) -> FeedProviderSyncResponse:
     return feed_providers_service.sync_all_enabled(timeout_seconds=timeout_seconds)
 
@@ -47,7 +47,7 @@ def admin_feed_sync_scheduler_status() -> dict[str, object]:
 @router.post("/scheduler/start")
 async def admin_start_feed_sync_scheduler(
     interval_seconds: Annotated[int | None, Query(ge=60, le=86400)] = None,
-    timeout_seconds: Annotated[int | None, Query(ge=3, le=60)] = None,
+    timeout_seconds: Annotated[int | None, Query(ge=3, le=300)] = None,
     run_on_startup: bool | None = None,
 ) -> dict[str, object]:
     await feed_sync_scheduler.start(
@@ -66,7 +66,7 @@ async def admin_stop_feed_sync_scheduler() -> dict[str, object]:
 
 @router.post("/scheduler/run-once")
 async def admin_run_feed_sync_scheduler_once(
-    timeout_seconds: Annotated[int | None, Query(ge=3, le=60)] = None,
+    timeout_seconds: Annotated[int | None, Query(ge=3, le=300)] = None,
 ) -> dict[str, object]:
     return await feed_sync_scheduler.run_once(timeout_seconds=timeout_seconds)
 
@@ -107,7 +107,7 @@ def admin_get_feed_provider(provider_id: str) -> FeedProviderResponse:
 @router.post("/{provider_id}/sync", response_model=FeedProviderSyncResponse, response_model_by_alias=True)
 def admin_sync_feed_provider(
     provider_id: str,
-    timeout_seconds: Annotated[int, Query(ge=3, le=60)] = 20,
+    timeout_seconds: Annotated[int, Query(ge=3, le=300)] = 20,
 ) -> FeedProviderSyncResponse:
     try:
         return feed_providers_service.sync_provider(provider_id, timeout_seconds=timeout_seconds)

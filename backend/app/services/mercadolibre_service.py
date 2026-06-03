@@ -8,6 +8,8 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+from app.core.config import get_settings
+
 
 _SITE_NAMES: dict[str, str] = {
     "MLA": "Mercado Libre Argentina",
@@ -121,8 +123,9 @@ class MercadoLibreService:
             params["sort"] = query["sort"]
         if query["category"]:
             params["category"] = query["category"]
-        if query["free_shipping"] in {"true", "1", "yes"}:
-            params["shipping_cost"] = "free"
+        # Do not send non-essential filters such as free shipping to Mercado Libre.
+        # Some public/search endpoints reject unsupported filter params with HTTP
+        # 400/403. We keep those rules as local quality filters instead.
 
         return (
             f"https://api.mercadolibre.com/sites/{urllib.parse.quote(query['site_id'])}/search?"
@@ -137,6 +140,7 @@ class MercadoLibreService:
         min_price = self._parse_float(query.get("min_price", ""))
         min_discount = self._parse_float(query.get("min_discount", ""))
         discount_only = query.get("discount_only", "false") in {"true", "1", "yes"}
+        free_shipping_only = query.get("free_shipping", "false") in {"true", "1", "yes"}
         exclude_keywords = [
             keyword.strip().lower()
             for keyword in query.get("exclude_keywords", "").split("|")
@@ -153,6 +157,9 @@ class MercadoLibreService:
 
             price = self._number(item.get("price"))
             if min_price is not None and price is not None and price < min_price:
+                continue
+
+            if free_shipping_only and not self._has_free_shipping(item):
                 continue
 
             discount = self._discount_percent(item)
@@ -175,19 +182,39 @@ class MercadoLibreService:
         return ((old_price - current_price) / old_price) * 100
 
     def _fetch_json(self, url: str, *, timeout_seconds: int) -> Any:
+        settings = get_settings()
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "DiscountHub-MercadoLibre-Adapter/0.1",
+        }
+        access_token = settings.mercadolibre_access_token.strip()
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
+
         try:
-            request = urllib.request.Request(
-                url,
-                headers={
-                    "Accept": "application/json",
-                    "User-Agent": "DiscountHub-MercadoLibre-Adapter/0.1",
-                },
-            )
+            request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                 charset = response.headers.get_content_charset() or "utf-8"
                 raw_body = response.read().decode(charset, errors="replace")
         except urllib.error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")
+            if exc.code in {401, 403}:
+                auth_hint = (
+                    "Mercado Libre search access is blocked for this request. "
+                    "Configure an official OAuth token in backend/.env as "
+                    "MERCADOLIBRE_ACCESS_TOKEN, or keep Mercado Libre providers disabled."
+                )
+                if access_token:
+                    auth_hint = (
+                        "Mercado Libre search access is blocked even with the configured "
+                        "MERCADOLIBRE_ACCESS_TOKEN. Check that the developer app, site, "
+                        "scopes, and token account are allowed to use search resources."
+                    )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{auth_hint} Upstream HTTP {exc.code}: {error_body[:500]}",
+                ) from exc
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Mercado Libre API returned HTTP {exc.code}: {error_body[:500]}",
@@ -205,6 +232,19 @@ class MercadoLibreService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Mercado Libre API did not return valid JSON: {exc}",
             ) from exc
+
+    def _has_free_shipping(self, item: dict[str, Any]) -> bool:
+        shipping = item.get("shipping")
+        if isinstance(shipping, dict):
+            if shipping.get("free_shipping") is True:
+                return True
+            logistic_type = str(shipping.get("logistic_type") or "").lower()
+            if "fulfillment" in logistic_type:
+                return True
+        tags = item.get("tags")
+        if isinstance(tags, list) and any(str(tag).lower() == "free_shipping" for tag in tags):
+            return True
+        return False
 
     def _single(self, params: dict[str, list[str]], key: str) -> str | None:
         values = params.get(key)

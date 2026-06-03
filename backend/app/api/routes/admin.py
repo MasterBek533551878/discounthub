@@ -7,6 +7,7 @@ from app.core.security import require_admin_token
 from app.models.deal import (
     AdminActionResponse,
     BulkDealUpsertRequest,
+    DealMonetizationMode,
     DealResponse,
     DealsExportResponse,
     DealsImportRequest,
@@ -32,6 +33,7 @@ def admin_list_deals(
     category: str | None = None,
     ships_to: str | None = None,
     currency: str = "USD",
+    monetization_mode: DealMonetizationMode | None = None,
     sort: DealSort = "newest",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 100,
@@ -42,6 +44,7 @@ def admin_list_deals(
         category=category,
         ships_to=ships_to,
         currency=currency,
+        monetization_mode=monetization_mode,
         sort=sort,
         page=page,
         page_size=page_size,

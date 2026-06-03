@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../settings/app_strings.dart';
 import '../../settings/settings_store.dart';
 import '../api/deal_api_query.dart';
+import '../api/deal_facets.dart';
 import '../api/deals_api_client.dart';
 import '../models/deal.dart';
 import '../models/deal_filters.dart';
@@ -23,19 +24,33 @@ class DealsRepository {
 
   static final DealsRepository instance = DealsRepository._();
 
-  static const String _cacheKey = 'discounthub_cached_api_deals_v1';
-  static const Duration _autoRefreshInterval = Duration(minutes: 1);
+  static const String _cacheKey = 'discounthub_cached_api_discount_deals_v2';
+  static const String _legacyCacheKey = 'discounthub_cached_api_deals_v1';
+  static const Duration _autoRefreshInterval = Duration(minutes: 5);
+  static const Duration _apiRequestTimeout = Duration(seconds: 20);
+  static const Duration _facetsRefreshInterval = Duration(minutes: 2);
+  static const int _initialApiPageSize = 36;
 
   final ValueNotifier<int> version = ValueNotifier<int>(0);
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String> statusMessage = ValueNotifier<String>('');
 
   DealsDataSource _dataSource = const MemoryDealsDataSource(<Deal>[]);
+  DealFacets _facets = DealFacets.empty();
+  DateTime? _facetsLoadedAt;
+  final Map<String, Deal> _recentApiDealsById = <String, Deal>{};
   String _activeSourceLabel = 'API';
   Timer? _autoRefreshTimer;
   bool _refreshInProgress = false;
 
   String get activeSourceLabel => _activeSourceLabel;
+
+  DealFacets get facets => _facets;
+
+  int get totalAvailableCount {
+    if (_facets.totalCount > 0) return _facets.totalCount;
+    return _dataSource.getDeals().length;
+  }
 
   bool get isApiActive => _activeSourceLabel.startsWith('API');
 
@@ -86,7 +101,11 @@ class DealsRepository {
         throw StateError('API returned an empty real deal list.');
       }
 
+      _rememberApiDeals(apiDeals);
       _dataSource = MemoryDealsDataSource(apiDeals);
+      if (!_facets.hasRemoteData) {
+        _facets = DealFacets.fromDeals(apiDeals);
+      }
       _activeSourceLabel = 'API';
       statusMessage.value = AppStrings.dataSourceApiConnected(apiDeals.length);
       await _saveCachedApiDeals(apiDeals);
@@ -135,22 +154,34 @@ class DealsRepository {
 
     for (final baseUrl in _apiBaseUrlCandidates()) {
       try {
-        final apiDataSource = ApiDealsDataSource(
-          apiClient: DealsApiClient(
-            baseUrl: Uri.parse(baseUrl),
-            timeout: const Duration(seconds: 4),
-          ),
+        final apiClient = DealsApiClient(
+          baseUrl: Uri.parse(baseUrl),
+          timeout: _apiRequestTimeout,
         );
+        final apiDataSource = ApiDealsDataSource(apiClient: apiClient);
 
         await apiDataSource.refresh(
           const DealApiQuery(
-            currency: 'USD',
-            pageSize: 100,
+            currency: '',
+            pageSize: _initialApiPageSize,
           ),
         );
 
         final deals = apiDataSource.getDeals();
         if (deals.where(_isRealApiDeal).isNotEmpty) {
+          try {
+            _facets = await apiClient.getFacets(
+              const DealApiQuery(),
+            );
+            _facetsLoadedAt = DateTime.now();
+          } catch (error) {
+            debugPrint('DiscountHub facets failed: $baseUrl -> $error');
+            // Do not turn the initial 36-item page into "global" facets.
+            // The home page will retry /deals/facets during the live search.
+            if (!_facets.hasRemoteData) {
+              _facets = DealFacets.empty();
+            }
+          }
           return apiDataSource;
         }
 
@@ -186,6 +217,9 @@ class DealsRepository {
 
   Future<bool> _loadCachedApiDeals({bool notify = true}) async {
     final prefs = await SharedPreferences.getInstance();
+    // Ignore and remove the old cache because it may contain ordinary Awin
+    // catalogue products that were imported during diagnostics with 0% discount.
+    await prefs.remove(_legacyCacheKey);
     final raw = prefs.getString(_cacheKey);
     if (raw == null || raw.trim().isEmpty) return false;
 
@@ -201,7 +235,10 @@ class DealsRepository {
 
       if (deals.isEmpty) return false;
 
+      _rememberApiDeals(deals);
       _dataSource = MemoryDealsDataSource(deals);
+      _facets = DealFacets.fromDeals(deals);
+      _facetsLoadedAt = null;
       _activeSourceLabel = 'API cache';
       statusMessage.value = AppStrings.select(
         en: 'Showing saved deals. Connect backend to refresh.',
@@ -222,6 +259,7 @@ class DealsRepository {
 
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(realDeals.map((deal) => deal.toJson()).toList());
+    await prefs.remove(_legacyCacheKey);
     await prefs.setString(_cacheKey, raw);
   }
 
@@ -238,7 +276,8 @@ class DealsRepository {
     return deal.id.trim().isNotEmpty &&
         deal.title.trim().isNotEmpty &&
         deal.imageUrl.trim().isNotEmpty &&
-        deal.currentPrice > 0;
+        deal.currentPrice > 0 &&
+        deal.discountPercent >= 1;
   }
 
   void _startAutoRefresh() {
@@ -251,10 +290,117 @@ class DealsRepository {
 
   void _useDemo(String message) {
     _dataSource = const FakeDealsDataSource();
+    _facets = DealFacets.fromDeals(_dataSource.getDeals());
+    _facetsLoadedAt = null;
     _activeSourceLabel = 'Demo';
     statusMessage.value = message;
     isLoading.value = false;
     _bump();
+  }
+
+  Future<DealSearchResult> searchDealsFromApi(
+    DealQuery query, {
+    int page = 1,
+    int pageSize = 60,
+  }) async {
+    if (!UserSettingsStore.useApiDataSource) {
+      return searchDeals(query);
+    }
+
+    Object? lastError;
+    final normalizedPage = page < 1 ? 1 : page;
+    final normalizedPageSize = pageSize.clamp(1, 100).toInt();
+
+    for (final baseUrl in _apiBaseUrlCandidates()) {
+      try {
+        final apiClient = DealsApiClient(
+          baseUrl: Uri.parse(baseUrl),
+          timeout: _apiRequestTimeout,
+        );
+        final apiPage = await apiClient.getDeals(
+          DealApiQuery.fromDealQuery(
+            query,
+            currency: '',
+          ).copyWith(
+            page: normalizedPage,
+            pageSize: normalizedPageSize,
+          ),
+        );
+
+        final realDeals = apiPage.deals.where(_isRealApiDeal).toList(growable: false);
+        _rememberApiDeals(realDeals);
+        _activeSourceLabel = 'API';
+
+        // Keep filters tied to the live backend catalogue, not to the
+        // currently loaded page. This is important after large Awin imports:
+        // the first page may contain 36 AliExpress products, while the full
+        // catalogue still contains thousands of AliExpress and eBay deals.
+        final shouldRefreshFacets = normalizedPage == 1 && _shouldRefreshFacets(
+          minimumTotal: apiPage.totalCount,
+        );
+        if (shouldRefreshFacets) {
+          final latestFacets = await _loadFacetsFromClient(apiClient);
+          if (_shouldUseFacets(latestFacets, minimumTotal: apiPage.totalCount)) {
+            _facets = latestFacets;
+            _facetsLoadedAt = DateTime.now();
+            _bump();
+          }
+        }
+
+        final safeTotalCount = realDeals.isEmpty ? 0 : apiPage.totalCount;
+        return DealSearchResult(
+          deals: List<Deal>.unmodifiable(realDeals),
+          totalCount: safeTotalCount,
+        );
+      } catch (error) {
+        lastError = error;
+        debugPrint('DiscountHub API search failed: $baseUrl -> $error');
+      }
+    }
+
+    if (_dataSource.getDeals().where(_isRealApiDeal).isNotEmpty) {
+      _activeSourceLabel = 'API cache';
+      return searchDeals(query);
+    }
+
+    throw lastError ?? StateError('No API URL candidates are available.');
+  }
+
+  Future<DealFacets> _loadFacetsFromClient(DealsApiClient apiClient) async {
+    try {
+      final loadedFacets = await apiClient.getFacets(
+        const DealApiQuery(),
+      );
+      if (loadedFacets.hasRemoteData) return loadedFacets;
+    } catch (error) {
+      debugPrint('DiscountHub facets refresh failed: $error');
+    }
+
+    // Do not synthesize facets from the first loaded page here. If the remote
+    // /deals/facets request times out, using the current page would make the
+    // filter sheet show misleading values such as "All · 36" and hide older
+    // marketplaces like eBay from the filter list. Keep the previous facets and
+    // let the next refresh try the backend again.
+    return DealFacets.empty();
+  }
+
+  bool _shouldRefreshFacets({required int minimumTotal}) {
+    if (!_facets.hasRemoteData) return true;
+    if (minimumTotal > 0 && _facets.totalCount < minimumTotal) return true;
+
+    final loadedAt = _facetsLoadedAt;
+    if (loadedAt == null) return false;
+
+    return DateTime.now().difference(loadedAt) > _facetsRefreshInterval;
+  }
+
+  bool _shouldUseFacets(DealFacets facets, {required int minimumTotal}) {
+    if (!facets.hasRemoteData) return false;
+    if (minimumTotal <= 0) return true;
+
+    // The backend total from /deals is authoritative for the current catalogue.
+    // Reject tiny page-derived facets when the catalogue is clearly larger.
+    return facets.totalCount >= minimumTotal;
   }
 
   List<Deal> getAllDeals() {
@@ -263,6 +409,9 @@ class DealsRepository {
 
   Deal? findById(String? id) {
     if (id == null) return null;
+
+    final recentDeal = _recentApiDealsById[id];
+    if (recentDeal != null) return recentDeal;
 
     for (final deal in _dataSource.getDeals()) {
       if (deal.id == id) return deal;
@@ -299,19 +448,67 @@ class DealsRepository {
     return List<Deal>.unmodifiable(deals);
   }
 
+
+  int estimateTotalForQuery(DealQuery query, {required int fallback}) {
+    if (!_facets.hasRemoteData) return fallback;
+
+    final filters = query.filters;
+    final hasSearch = query.searchText.trim().isNotEmpty;
+    if (hasSearch) return fallback;
+
+    final hasRangeOrQualityFilters = filters.minDiscount > 0 ||
+        filters.maxPrice != null ||
+        filters.minRating > 0 ||
+        filters.freeShippingOnly ||
+        filters.verifiedOnly;
+    if (hasRangeOrQualityFilters) return fallback;
+
+    final selectedDimensions = <int>[
+      if (filters.platform != 'All') _facets.countForMarketplace(filters.platform),
+      if (filters.category != 'All') _facets.countForCategory(filters.category),
+      if (filters.shipToCountry != 'All') _facets.countForCountry(filters.shipToCountry),
+      if (filters.monetizationMode != 'All')
+        _facets.countForMonetizationMode(filters.monetizationMode),
+    ].where((count) => count > 0).toList(growable: false);
+
+    if (selectedDimensions.isEmpty) {
+      return _facets.totalCount > fallback ? _facets.totalCount : fallback;
+    }
+
+    final conservativeEstimate = selectedDimensions.reduce(
+      (value, element) => value < element ? value : element,
+    );
+    return conservativeEstimate > fallback ? conservativeEstimate : fallback;
+  }
+
   List<String> getPlatforms({bool includeAll = false}) {
+    final facetValues = _facets.marketplaces.map((item) => item.id).toList();
+    if (facetValues.isNotEmpty) {
+      return includeAll ? ['All', ...facetValues] : facetValues;
+    }
+
     final values = _dataSource.getDeals().map((deal) => deal.platform).toSet().toList();
     values.sort();
     return includeAll ? ['All', ...values] : values;
   }
 
   List<String> getCategories({bool includeAll = false}) {
+    final facetValues = _facets.categories.map((item) => item.id).toList();
+    if (facetValues.isNotEmpty) {
+      return includeAll ? ['All', ...facetValues] : facetValues;
+    }
+
     final values = _dataSource.getDeals().map((deal) => deal.category).toSet().toList();
     values.sort();
     return includeAll ? ['All', ...values] : values;
   }
 
   List<String> getShippingCountries({bool includeAll = false}) {
+    final facetValues = _facets.countries.map((item) => item.id).toList();
+    if (facetValues.isNotEmpty) {
+      return includeAll ? ['All', ...facetValues] : facetValues;
+    }
+
     final values = _dataSource
         .getDeals()
         .expand((deal) => deal.shipsTo)
@@ -321,11 +518,41 @@ class DealsRepository {
     return includeAll ? ['All', ...values] : values;
   }
 
+  List<String> getMonetizationModes({bool includeAll = false}) {
+    final facetValues = _facets.monetizationModes.map((item) => item.id).toList();
+    if (facetValues.isNotEmpty) {
+      return includeAll ? ['All', ...facetValues] : facetValues;
+    }
+
+    final values = _dataSource.getDeals().map((deal) => deal.monetizationMode).toSet().toList();
+    values.sort();
+    return includeAll ? ['All', ...values] : values;
+  }
+
   int countByCategory(String category) {
+    final facetCount = _facets.countForCategory(category);
+    if (facetCount > 0) return facetCount;
     return _dataSource.getDeals().where((deal) => deal.category == category).length;
   }
 
+  int countByPlatform(String platform) {
+    final facetCount = _facets.countForMarketplace(platform);
+    if (facetCount > 0) return facetCount;
+    return _dataSource
+        .getDeals()
+        .where((deal) => _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(platform))
+        .length;
+  }
+
+  int countByMonetizationMode(String mode) {
+    final facetCount = _facets.countForMonetizationMode(mode);
+    if (facetCount > 0) return facetCount;
+    return _dataSource.getDeals().where((deal) => deal.monetizationMode == mode).length;
+  }
+
   double get maxAvailablePrice {
+    if (_facets.priceRange.max > 0) return _facets.priceRange.max.ceilToDouble();
+
     final deals = _dataSource.getDeals();
     if (deals.isEmpty) return 1;
 
@@ -334,6 +561,16 @@ class DealsRepository {
         .reduce((value, element) => value > element ? value : element);
 
     return maxPrice.ceilToDouble();
+  }
+
+
+  String _publicMarketplaceLabel(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.startsWith('ebay')) return 'eBay';
+    if (normalized.startsWith('aliexpress')) return 'AliExpress';
+    if (normalized.startsWith('alibaba')) return 'Alibaba';
+    if (normalized.startsWith('amazon')) return 'Amazon';
+    return value.trim();
   }
 
   bool _matchesSearch(Deal deal, String searchText) {
@@ -358,9 +595,13 @@ class DealsRepository {
   }
 
   bool _matchesFilters(Deal deal, DealFilters filters) {
-    final matchesPlatform = filters.platform == 'All' || deal.platform == filters.platform;
+    if (!deal.hasRealDiscount) return false;
+
+    final matchesPlatform = filters.platform == 'All' ||
+        _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(filters.platform);
     final matchesCategory = filters.category == 'All' || deal.category == filters.category;
     final matchesCountry = filters.shipToCountry == 'All' || deal.shipsTo.contains(filters.shipToCountry);
+    final matchesMonetizationMode = filters.monetizationMode == 'All' || deal.monetizationMode == filters.monetizationMode;
     final matchesDiscount = deal.discountPercent >= filters.minDiscount;
     final matchesPrice = filters.maxPrice == null || deal.currentPrice <= filters.maxPrice!;
     final matchesRating = deal.rating >= filters.minRating;
@@ -370,6 +611,7 @@ class DealsRepository {
     return matchesPlatform &&
         matchesCategory &&
         matchesCountry &&
+        matchesMonetizationMode &&
         matchesDiscount &&
         matchesPrice &&
         matchesRating &&
@@ -393,6 +635,23 @@ class DealsRepository {
     }
 
     return sorted;
+  }
+
+  void _rememberApiDeals(List<Deal> deals) {
+    for (final deal in deals.where(_isRealApiDeal)) {
+      _recentApiDealsById[deal.id] = deal;
+    }
+
+    // Keep memory bounded while preserving the latest visible/server-loaded
+    // deals for details navigation. Favorites still use the saved local ids.
+    const maxRememberedDeals = 500;
+    if (_recentApiDealsById.length <= maxRememberedDeals) return;
+
+    final overflow = _recentApiDealsById.length - maxRememberedDeals;
+    final keysToRemove = _recentApiDealsById.keys.take(overflow).toList();
+    for (final key in keysToRemove) {
+      _recentApiDealsById.remove(key);
+    }
   }
 
   void _bump() {

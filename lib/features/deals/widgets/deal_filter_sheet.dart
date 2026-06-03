@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/app_theme.dart';
 import '../../settings/app_strings.dart';
 import '../../settings/settings_store.dart';
+import '../api/deal_facets.dart';
 import '../models/deal_filters.dart';
 
 class DealFilterSheet extends StatefulWidget {
@@ -13,13 +14,17 @@ class DealFilterSheet extends StatefulWidget {
     required this.categories,
     required this.countries,
     required this.maxAvailablePrice,
+    this.monetizationModes = const <String>['All'],
+    this.facets,
   });
 
   final DealFilters initialFilters;
   final List<String> platforms;
   final List<String> categories;
   final List<String> countries;
+  final List<String> monetizationModes;
   final double maxAvailablePrice;
+  final DealFacets? facets;
 
   @override
   State<DealFilterSheet> createState() => _DealFilterSheetState();
@@ -29,6 +34,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
   late String _platform;
   late String _category;
   late String _shipToCountry;
+  late String _monetizationMode;
   late int _minDiscount;
   late double _maxPrice;
   late bool _usePriceLimit;
@@ -36,7 +42,20 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
   late bool _freeShippingOnly;
   late bool _verifiedOnly;
 
+  final TextEditingController _marketplaceSearchController = TextEditingController();
+  String _marketplaceSearchText = '';
+
   double get _safeMaxPrice => widget.maxAvailablePrice < 1 ? 1 : widget.maxAvailablePrice;
+
+  List<String> get _visiblePlatforms {
+    final query = _marketplaceSearchText.trim().toLowerCase();
+    if (query.isEmpty) return widget.platforms;
+
+    return widget.platforms.where((platform) {
+      if (platform == 'All') return true;
+      return platform.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
 
   @override
   void initState() {
@@ -46,6 +65,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     _platform = filters.platform;
     _category = filters.category;
     _shipToCountry = filters.shipToCountry;
+    _monetizationMode = filters.monetizationMode;
     _minDiscount = filters.minDiscount;
     _maxPrice = filters.maxPrice ?? _safeMaxPrice;
     _usePriceLimit = filters.maxPrice != null;
@@ -54,11 +74,18 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     _verifiedOnly = filters.verifiedOnly;
   }
 
+  @override
+  void dispose() {
+    _marketplaceSearchController.dispose();
+    super.dispose();
+  }
+
   DealFilters get _currentFilters {
     return DealFilters(
       platform: _platform,
       category: _category,
       shipToCountry: _shipToCountry,
+      monetizationMode: _monetizationMode,
       minDiscount: _minDiscount,
       maxPrice: _usePriceLimit ? _maxPrice : null,
       minRating: _minRating,
@@ -72,12 +99,15 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
       _platform = 'All';
       _category = 'All';
       _shipToCountry = 'All';
+      _monetizationMode = 'All';
       _minDiscount = 0;
       _maxPrice = _safeMaxPrice;
       _usePriceLimit = false;
       _minRating = 0;
       _freeShippingOnly = false;
       _verifiedOnly = false;
+      _marketplaceSearchText = '';
+      _marketplaceSearchController.clear();
     });
   }
 
@@ -90,9 +120,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.88,
+        initialChildSize: 0.9,
         minChildSize: 0.55,
-        maxChildSize: 0.94,
+        maxChildSize: 0.95,
         builder: (context, scrollController) {
           return Column(
             children: [
@@ -123,7 +153,11 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      AppStrings.filterDescription,
+                      AppStrings.select(
+                        en: 'Choose a marketplace, category, delivery region or discount level to narrow the deals feed.',
+                        ru: 'Выберите маркетплейс, категорию, регион доставки или уровень скидки, чтобы сузить ленту.',
+                        uz: 'Takliflar lentasini qisqartirish uchun marketplace, kategoriya, yetkazib berish hududi yoki chegirma darajasini tanlang.',
+                      ),
                       style: const TextStyle(
                         color: AppTheme.mutedText,
                         fontSize: 14,
@@ -135,11 +169,37 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                     _Section(
                       icon: Icons.storefront_rounded,
                       title: AppStrings.marketplace,
-                      child: _ChoiceWrap(
-                        values: widget.platforms,
-                        selectedValue: _platform,
-                        labelBuilder: (value) => value == 'All' ? AppStrings.all : value,
-                        onSelected: (value) => setState(() => _platform = value),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _marketplaceSearchController,
+                            onChanged: (value) => setState(() => _marketplaceSearchText = value),
+                            decoration: InputDecoration(
+                              hintText: AppStrings.select(
+                                en: 'Search stores',
+                                ru: 'Поиск магазинов',
+                                uz: 'Do‘konlarni qidirish',
+                              ),
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _ChoiceWrap(
+                            values: _visiblePlatforms,
+                            selectedValue: _platform,
+                            labelBuilder: (value) => _labelWithCount(
+                              value: value,
+                              allLabel: AppStrings.all,
+                              name: _marketplaceLabel(value),
+                              count: value == 'All'
+                                  ? widget.facets?.totalCount ?? 0
+                                  : widget.facets?.countForMarketplace(value) ?? 0,
+                            ),
+                            onSelected: (value) => setState(() => _platform = value),
+                          ),
+                        ],
                       ),
                     ),
                     _Section(
@@ -148,7 +208,14 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                       child: _ChoiceWrap(
                         values: widget.categories,
                         selectedValue: _category,
-                        labelBuilder: (value) => value == 'All' ? AppStrings.all : AppStrings.categoryName(value),
+                        labelBuilder: (value) => _labelWithCount(
+                          value: value,
+                          allLabel: AppStrings.all,
+                          name: value == 'All' ? null : AppStrings.categoryName(value),
+                          count: value == 'All'
+                              ? widget.facets?.totalCount ?? 0
+                              : widget.facets?.countForCategory(value) ?? 0,
+                        ),
                         onSelected: (value) => setState(() => _category = value),
                       ),
                     ),
@@ -158,8 +225,35 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                       child: _ChoiceWrap(
                         values: widget.countries,
                         selectedValue: _shipToCountry,
-                        labelBuilder: (value) => value == 'All' ? AppStrings.all : value,
+                        labelBuilder: (value) => _labelWithCount(
+                          value: value,
+                          allLabel: AppStrings.all,
+                          count: value == 'All'
+                              ? widget.facets?.totalCount ?? 0
+                              : widget.facets?.countForCountry(value) ?? 0,
+                        ),
                         onSelected: (value) => setState(() => _shipToCountry = value),
+                      ),
+                    ),
+                    _Section(
+                      icon: Icons.account_balance_wallet_rounded,
+                      title: AppStrings.select(
+                        en: 'Link type',
+                        ru: 'Тип ссылки',
+                        uz: 'Havola turi',
+                      ),
+                      child: _ChoiceWrap(
+                        values: widget.monetizationModes,
+                        selectedValue: _monetizationMode,
+                        labelBuilder: (value) => _labelWithCount(
+                          value: value,
+                          allLabel: AppStrings.all,
+                          name: _monetizationModeLabel(value),
+                          count: value == 'All'
+                              ? widget.facets?.totalCount ?? 0
+                              : widget.facets?.countForMonetizationMode(value) ?? 0,
+                        ),
+                        onSelected: (value) => setState(() => _monetizationMode = value),
                       ),
                     ),
                     _Section(
@@ -240,6 +334,53 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
         },
       ),
     );
+  }
+
+
+  String? _marketplaceLabel(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.startsWith('ebay')) return 'eBay';
+    if (normalized.startsWith('aliexpress')) return 'AliExpress';
+    if (normalized.startsWith('alibaba')) return 'Alibaba';
+    if (normalized.startsWith('amazon')) return 'Amazon';
+    return null;
+  }
+
+  String _labelWithCount({
+    required String value,
+    required String allLabel,
+    String? name,
+    int count = 0,
+  }) {
+    // Counts are intentionally hidden in the UI. The backend still provides
+    // them for sorting/ordering facets, but customers should only see filter
+    // names, not catalog totals per store/category/link type.
+    return value == 'All' ? allLabel : name ?? value;
+  }
+
+  String _monetizationModeLabel(String value) {
+    switch (value) {
+      case 'direct':
+        return AppStrings.select(
+          en: 'Direct',
+          ru: 'Прямая',
+          uz: 'To‘g‘ridan-to‘g‘ri',
+        );
+      case 'affiliate':
+        return AppStrings.select(
+          en: 'Affiliate',
+          ru: 'Партнёрская',
+          uz: 'Hamkorlik',
+        );
+      case 'pending_affiliate':
+        return AppStrings.select(
+          en: 'Pending affiliate',
+          ru: 'Партнёрка ожидается',
+          uz: 'Hamkorlik kutilmoqda',
+        );
+      default:
+        return value;
+    }
   }
 }
 

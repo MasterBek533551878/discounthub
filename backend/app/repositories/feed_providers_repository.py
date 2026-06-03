@@ -40,19 +40,21 @@ class FeedProvidersRepository:
                     adapter,
                     enabled,
                     replace_on_sync,
+                    monetization_mode,
                     last_sync_at,
                     last_status,
                     last_message,
                     last_imported_count,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     name = excluded.name,
                     url = excluded.url,
                     adapter = excluded.adapter,
                     enabled = excluded.enabled,
                     replace_on_sync = excluded.replace_on_sync,
+                    monetization_mode = excluded.monetization_mode,
                     updated_at = excluded.updated_at
                 """,
                 self._provider_to_values(provider),
@@ -110,6 +112,7 @@ class FeedProvidersRepository:
             provider.adapter,
             int(provider.enabled),
             int(provider.replace_on_sync),
+            provider.monetization_mode,
             provider.last_sync_at.isoformat() if provider.last_sync_at else None,
             provider.last_status,
             provider.last_message,
@@ -119,6 +122,10 @@ class FeedProvidersRepository:
         )
 
     def _row_to_provider(self, row: sqlite3.Row) -> FeedProvider:
+        monetization_mode = str(row["monetization_mode"] or "direct")
+        if monetization_mode not in ("affiliate", "direct", "pending_affiliate"):
+            monetization_mode = "direct"
+
         return FeedProvider(
             id=str(row["id"]),
             name=str(row["name"]),
@@ -126,6 +133,7 @@ class FeedProvidersRepository:
             adapter=str(row["adapter"] or "auto"),
             enabled=bool(row["enabled"]),
             replace_on_sync=bool(row["replace_on_sync"]),
+            monetization_mode=monetization_mode,  # type: ignore[arg-type]
             last_sync_at=datetime.fromisoformat(str(row["last_sync_at"])) if row["last_sync_at"] else None,
             last_status=str(row["last_status"]) if row["last_status"] else None,
             last_message=str(row["last_message"]) if row["last_message"] else None,

@@ -4,19 +4,16 @@ from typing import Literal
 from pydantic import Field
 
 
-FeedProviderAdapter = Literal[
-    "auto",
-    "discounthub_json",
-    "generic_products",
-    "csv_products",
-    "google_merchant",
-    "awin_products",
-    "admitad_products",
-    "rakuten_products",
-    "cj_products",
-    "impact_products",
-    "ebay_browse_api",
-    "mercadolibre_search_api",
+# Keep feed provider adapters as plain strings at the API/storage boundary.
+# Older local databases may contain legacy/experimental adapter ids such as
+# "awin_feed_list_api". Listing providers must never crash because of those
+# rows; unsupported adapters are rejected during sync by the importer instead.
+FeedProviderAdapter = str
+
+FeedProviderMonetizationMode = Literal[
+    "affiliate",
+    "direct",
+    "pending_affiliate",
 ]
 
 from app.models.common import ApiModel
@@ -29,6 +26,7 @@ class FeedProvider(ApiModel):
     adapter: FeedProviderAdapter = "auto"
     enabled: bool = True
     replace_on_sync: bool = False
+    monetization_mode: FeedProviderMonetizationMode = "direct"
     last_sync_at: datetime | None = None
     last_status: str | None = None
     last_message: str | None = None
@@ -44,6 +42,7 @@ class FeedProviderResponse(ApiModel):
     adapter: FeedProviderAdapter
     enabled: bool
     replace_on_sync: bool
+    monetization_mode: FeedProviderMonetizationMode = "direct"
     last_sync_at: datetime | None = None
     last_status: str | None = None
     last_message: str | None = None
@@ -59,6 +58,7 @@ class FeedProviderUpsertRequest(ApiModel):
     adapter: FeedProviderAdapter = "auto"
     enabled: bool = True
     replace_on_sync: bool = False
+    monetization_mode: FeedProviderMonetizationMode = "direct"
 
 
 class FeedProviderListResponse(ApiModel):

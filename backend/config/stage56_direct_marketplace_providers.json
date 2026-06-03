@@ -1,0 +1,146 @@
+[
+  {
+    "id": "mercadolibre_mlm_electronics_direct_v1",
+    "name": "Mercado Libre Direct - Electronics Deals - Mexico",
+    "url": "mercadolibre://search?site_id=MLM&q=audifonos+bluetooth&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlm_computers_direct_v1",
+    "name": "Mercado Libre Direct - Computers Deals - Mexico",
+    "url": "mercadolibre://search?site_id=MLM&q=laptop&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlm_fashion_direct_v1",
+    "name": "Mercado Libre Direct - Fashion Deals - Mexico",
+    "url": "mercadolibre://search?site_id=MLM&q=tenis+hombre&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlm_gaming_direct_v1",
+    "name": "Mercado Libre Direct - Gaming Deals - Mexico",
+    "url": "mercadolibre://search?site_id=MLM&q=consola+videojuegos&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlb_electronics_direct_v1",
+    "name": "Mercado Libre Direct - Electronics Deals - Brazil",
+    "url": "mercadolibre://search?site_id=MLB&q=fone+bluetooth&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlb_computers_direct_v1",
+    "name": "Mercado Libre Direct - Computers Deals - Brazil",
+    "url": "mercadolibre://search?site_id=MLB&q=notebook&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlb_fashion_direct_v1",
+    "name": "Mercado Libre Direct - Fashion Deals - Brazil",
+    "url": "mercadolibre://search?site_id=MLB&q=tenis+masculino&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlb_gaming_direct_v1",
+    "name": "Mercado Libre Direct - Gaming Deals - Brazil",
+    "url": "mercadolibre://search?site_id=MLB&q=controle+gamer&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mla_electronics_direct_v1",
+    "name": "Mercado Libre Direct - Electronics Deals - Argentina",
+    "url": "mercadolibre://search?site_id=MLA&q=auriculares+bluetooth&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mla_computers_direct_v1",
+    "name": "Mercado Libre Direct - Computers Deals - Argentina",
+    "url": "mercadolibre://search?site_id=MLA&q=notebook&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mla_fashion_direct_v1",
+    "name": "Mercado Libre Direct - Fashion Deals - Argentina",
+    "url": "mercadolibre://search?site_id=MLA&q=zapatillas+hombre&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mla_gaming_direct_v1",
+    "name": "Mercado Libre Direct - Gaming Deals - Argentina",
+    "url": "mercadolibre://search?site_id=MLA&q=consola+videojuegos&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlc_electronics_direct_v1",
+    "name": "Mercado Libre Direct - Electronics Deals - Chile",
+    "url": "mercadolibre://search?site_id=MLC&q=audifonos+bluetooth&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlc_computers_direct_v1",
+    "name": "Mercado Libre Direct - Computers Deals - Chile",
+    "url": "mercadolibre://search?site_id=MLC&q=notebook&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlc_fashion_direct_v1",
+    "name": "Mercado Libre Direct - Fashion Deals - Chile",
+    "url": "mercadolibre://search?site_id=MLC&q=zapatillas+hombre&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  },
+  {
+    "id": "mercadolibre_mlc_gaming_direct_v1",
+    "name": "Mercado Libre Direct - Gaming Deals - Chile",
+    "url": "mercadolibre://search?site_id=MLC&q=mouse+gamer&limit=50&min_price=10&min_discount=10&discount_only=true&free_shipping=true&exclude_keywords=broken|not+working|for+parts|parts+only|defect|defective|damaged|untested|case+only|box+only|empty+box|repuesto|refacciones|reparacion|reparaci%C3%B3n|para+reparar|solo+piezas|defeito|defeituoso|pe%C3%A7as|conserto",
+    "adapter": "mercadolibre_search_api",
+    "enabled": true,
+    "replaceOnSync": false,
+    "monetizationMode": "direct"
+  }
+]

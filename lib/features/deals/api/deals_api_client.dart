@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/deal.dart';
 import 'deal_api_dto.dart';
+import 'deal_facets.dart';
 import 'deal_api_query.dart';
 import 'deal_api_response.dart';
 
@@ -24,6 +25,18 @@ class DealsApiClient {
     final json = _decodeObject(response);
 
     return DealApiPage.fromJson(json);
+  }
+
+  Future<DealFacets> getFacets([DealApiQuery query = const DealApiQuery()]) async {
+    final parameters = Map<String, String>.from(query.toQueryParameters())
+      ..remove('sort')
+      ..remove('page')
+      ..remove('page_size');
+    final uri = _buildUri('/deals/facets', parameters);
+    final response = await _httpClient.get(uri).timeout(timeout);
+    final json = _decodeObject(response);
+
+    return DealFacets.fromJson(json);
   }
 
   Future<Deal> getDealById(String id) async {

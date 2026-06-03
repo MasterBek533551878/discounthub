@@ -15,6 +15,11 @@ class Deal {
     required this.freeShipping,
     required this.verified,
     required this.shipsTo,
+    this.providerId,
+    this.monetizationMode = 'direct',
+    this.hotDeal = false,
+    this.lowestPrice = false,
+    this.dealScore = 0,
   });
 
   final String id;
@@ -32,6 +37,11 @@ class Deal {
   final bool freeShipping;
   final bool verified;
   final List<String> shipsTo;
+  final String? providerId;
+  final String monetizationMode;
+  final bool hotDeal;
+  final bool lowestPrice;
+  final int dealScore;
 
   factory Deal.fromJson(Map<String, dynamic> json) {
     return Deal(
@@ -50,6 +60,14 @@ class Deal {
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
+      providerId: _nullableString(json['providerId'] ?? json['provider_id']),
+      monetizationMode: _string(
+        json['monetizationMode'] ?? json['monetization_mode'],
+        fallback: 'direct',
+      ),
+      hotDeal: _bool(json['hotDeal'] ?? json['hot_deal']),
+      lowestPrice: _bool(json['lowestPrice'] ?? json['lowest_price']),
+      dealScore: _int(json['dealScore'] ?? json['deal_score']),
     );
   }
 
@@ -70,15 +88,33 @@ class Deal {
       'freeShipping': freeShipping,
       'verified': verified,
       'shipsTo': shipsTo,
+      'providerId': providerId,
+      'monetizationMode': monetizationMode,
+      'hotDeal': hotDeal,
+      'lowestPrice': lowestPrice,
+      'dealScore': dealScore,
     };
   }
 
-  int get discountPercent {
-    if (oldPrice <= 0) return 0;
-    return (((oldPrice - currentPrice) / oldPrice) * 100).round();
+  double get rawDiscountPercent {
+    if (oldPrice <= 0 || currentPrice <= 0 || oldPrice <= currentPrice) return 0;
+    return ((oldPrice - currentPrice) / oldPrice) * 100;
   }
 
-  double get savedAmount => oldPrice - currentPrice;
+  bool get hasRealDiscount => rawDiscountPercent >= 1;
+
+  int get discountPercent {
+    if (!hasRealDiscount) return 0;
+    final percent = rawDiscountPercent.round();
+    if (percent < 1) return 0;
+    if (percent > 100) return 100;
+    return percent;
+  }
+
+  double get savedAmount {
+    if (!hasRealDiscount) return 0;
+    return oldPrice - currentPrice;
+  }
 
   String get formattedCurrentPrice => '$currency ${currentPrice.toStringAsFixed(2)}';
 
@@ -90,6 +126,12 @@ class Deal {
     if (value is String && value.trim().isNotEmpty) return value.trim();
     if (value is num) return value.toString();
     return fallback;
+  }
+
+  static String? _nullableString(dynamic value) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+    if (value is num) return value.toString();
+    return null;
   }
 
   static double _double(dynamic value) {

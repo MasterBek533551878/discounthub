@@ -150,3 +150,38 @@ POST   /admin/feed-providers/scheduler/run-once
 3. Keep `productUrl` and `affiliateUrl` separate.
 4. Always route outbound taps through `/deals/{id}/click` so clicks can be counted.
 5. In production, use HTTPS backend URLs and keep admin panel/docs disabled unless explicitly needed.
+
+
+## Stage 53: Server-side facets and monetization mode
+
+### `GET /deals/facets`
+
+Returns the filter dictionary that the Flutter app should use when it renders marketplace/category/country/currency filters for a large catalog.
+
+Supported query params mirror `GET /deals`: `q`, `platform`, `category`, `ships_to`, `currency`, `min_discount`, `min_rating`, `max_price`, `free_shipping`, `verified`, `monetization_mode`.
+
+Response shape uses camelCase aliases:
+
+```json
+{
+  "total": 1096,
+  "marketplaces": [{ "id": "eBay US", "name": "eBay US", "count": 626 }],
+  "categories": [{ "id": "Electronics", "name": "Electronics", "count": 414 }],
+  "shippingCountries": [{ "id": "US", "name": "US", "count": 626 }],
+  "currencies": [{ "id": "USD", "name": "USD", "count": 626 }],
+  "monetizationModes": [{ "id": "direct", "name": "direct", "count": 1096 }],
+  "priceRange": { "min": 9.99, "max": 999.99, "currency": "USD" },
+  "discountRange": { "min": 15, "max": 80 },
+  "generatedAt": "2026-05-26T00:00:00Z"
+}
+```
+
+### `monetizationMode`
+
+Deals and feed providers now support:
+
+- `direct` — regular store/marketplace link, no commission yet.
+- `affiliate` — affiliate/tracking link.
+- `pending_affiliate` — traffic collection while waiting for partner approval.
+
+Existing deals are migrated safely. If an old `affiliate_url` equals `product_url`, the deal is treated as `direct`.

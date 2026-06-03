@@ -197,7 +197,19 @@ class UserSettingsStore {
     final selectedCurrency = currency.value;
     final rate = demoUsdRates[selectedCurrency] ?? 1;
     final converted = usdAmount * rate;
-    final decimalDigits = selectedCurrency == 'UZS' ? 0 : 2;
+    return formatNativeAmount(converted, selectedCurrency);
+  }
+
+  static String formatDealPrice(double amount, String currencyCode) {
+    final normalizedCurrency = currencyCode.trim().toUpperCase();
+    final displayCurrency = normalizedCurrency.isEmpty ? currency.value : normalizedCurrency;
+    return formatNativeAmount(amount, displayCurrency);
+  }
+
+  static String formatNativeAmount(double amount, String currencyCode) {
+    final normalizedCurrency = currencyCode.trim().toUpperCase();
+    final displayCurrency = normalizedCurrency.isEmpty ? currency.value : normalizedCurrency;
+    final decimalDigits = _zeroDecimalCurrencies.contains(displayCurrency) ? 0 : 2;
 
     final formatter = NumberFormat.currency(
       locale: 'en_US',
@@ -205,8 +217,17 @@ class UserSettingsStore {
       decimalDigits: decimalDigits,
     );
 
-    return '$selectedCurrency ${formatter.format(converted).trim()}';
+    return '$displayCurrency ${formatter.format(amount).trim()}';
   }
+
+  static const Set<String> _zeroDecimalCurrencies = {
+    'UZS',
+    'JPY',
+    'KRW',
+    'CLP',
+    'COP',
+    'ARS',
+  };
 
 
   static String _safeApiBaseUrl(String? saved) {
