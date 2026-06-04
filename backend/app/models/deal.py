@@ -21,6 +21,14 @@ DealMonetizationMode = Literal[
     "pending_affiliate",
 ]
 
+DealDeliveryRegion = Literal[
+    "global",
+    "cis",
+    "europe",
+    "usa",
+    "latam",
+]
+
 
 class Deal(ApiModel):
     id: str
@@ -41,6 +49,7 @@ class Deal(ApiModel):
     free_shipping: bool = False
     verified: bool = False
     ships_to: list[str] = Field(default_factory=list)
+    delivery_regions: list[DealDeliveryRegion] = Field(default_factory=list)
     hot_deal: bool = False
     lowest_price: bool = False
     deal_score: int = Field(default=0, ge=0, le=100)
@@ -76,6 +85,7 @@ class DealResponse(ApiModel):
     free_shipping: bool
     verified: bool
     ships_to: list[str]
+    delivery_regions: list[DealDeliveryRegion]
     hot_deal: bool
     lowest_price: bool
     deal_score: int
@@ -114,6 +124,7 @@ class DealsFacetsResponse(ApiModel):
     marketplaces: list[DealFacetItem]
     categories: list[DealFacetItem]
     shipping_countries: list[DealFacetItem]
+    delivery_regions: list[DealFacetItem]
     currencies: list[DealFacetItem]
     monetization_modes: list[DealFacetItem]
     price_range: DealPriceRange
@@ -171,6 +182,7 @@ class DealUpsertRequest(ApiModel):
     free_shipping: bool = False
     verified: bool = False
     ships_to: list[str] = Field(default_factory=list)
+    delivery_regions: list[DealDeliveryRegion] = Field(default_factory=list)
     hot_deal: bool = False
     lowest_price: bool = False
     deal_score: int | None = Field(default=None, ge=0, le=100)

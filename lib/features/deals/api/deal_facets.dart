@@ -6,6 +6,7 @@ class DealFacets {
     required this.marketplaces,
     required this.categories,
     required this.countries,
+    required this.deliveryRegions,
     required this.currencies,
     required this.monetizationModes,
     required this.priceRange,
@@ -16,6 +17,7 @@ class DealFacets {
   final List<DealFacetItem> marketplaces;
   final List<DealFacetItem> categories;
   final List<DealFacetItem> countries;
+  final List<DealFacetItem> deliveryRegions;
   final List<DealFacetItem> currencies;
   final List<DealFacetItem> monetizationModes;
   final DealNumberRange priceRange;
@@ -26,6 +28,7 @@ class DealFacets {
         marketplaces.isNotEmpty ||
         categories.isNotEmpty ||
         countries.isNotEmpty ||
+        deliveryRegions.isNotEmpty ||
         currencies.isNotEmpty ||
         monetizationModes.isNotEmpty ||
         priceRange.max > 0 ||
@@ -38,6 +41,7 @@ class DealFacets {
       marketplaces: <DealFacetItem>[],
       categories: <DealFacetItem>[],
       countries: <DealFacetItem>[],
+      deliveryRegions: <DealFacetItem>[],
       currencies: <DealFacetItem>[],
       monetizationModes: <DealFacetItem>[],
       priceRange: DealNumberRange(min: 0, max: 0, unit: 'USD'),
@@ -52,7 +56,8 @@ class DealFacets {
       ),
       marketplaces: _facetItems(json['marketplaces']),
       categories: _facetItems(json['categories']),
-      countries: _facetItems(json['countries']),
+      countries: _facetItems(json['countries'] ?? json['shippingCountries'] ?? json['shipping_countries']),
+      deliveryRegions: _facetItems(json['deliveryRegions'] ?? json['delivery_regions']),
       currencies: _facetItems(json['currencies']),
       monetizationModes: _facetItems(
         json['monetizationModes'] ?? json['monetization_modes'],
@@ -76,6 +81,7 @@ class DealFacets {
       marketplaces: _itemsFromValues(deals.map((deal) => _publicMarketplaceLabel(deal.platform))),
       categories: _itemsFromValues(deals.map((deal) => deal.category)),
       countries: _itemsFromValues(deals.expand((deal) => deal.shipsTo)),
+      deliveryRegions: _itemsFromValues(deals.expand((deal) => deal.deliveryRegions)),
       currencies: _itemsFromValues(deals.map((deal) => deal.currency)),
       monetizationModes: _itemsFromValues(
         deals.map((deal) => deal.monetizationMode),
@@ -98,6 +104,8 @@ class DealFacets {
   int countForCategory(String id) => _countFor(categories, id);
 
   int countForCountry(String id) => _countFor(countries, id);
+
+  int countForDeliveryRegion(String id) => _countFor(deliveryRegions, id);
 
   int countForMonetizationMode(String id) => _countFor(monetizationModes, id);
 

@@ -13,8 +13,8 @@ class DealFilterSheet extends StatefulWidget {
     required this.platforms,
     required this.categories,
     required this.countries,
+    required this.deliveryRegions,
     required this.maxAvailablePrice,
-    this.monetizationModes = const <String>['All'],
     this.facets,
   });
 
@@ -22,7 +22,7 @@ class DealFilterSheet extends StatefulWidget {
   final List<String> platforms;
   final List<String> categories;
   final List<String> countries;
-  final List<String> monetizationModes;
+  final List<String> deliveryRegions;
   final double maxAvailablePrice;
   final DealFacets? facets;
 
@@ -34,7 +34,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
   late String _platform;
   late String _category;
   late String _shipToCountry;
-  late String _monetizationMode;
+  late String _deliveryRegion;
   late int _minDiscount;
   late double _maxPrice;
   late bool _usePriceLimit;
@@ -65,7 +65,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     _platform = filters.platform;
     _category = filters.category;
     _shipToCountry = filters.shipToCountry;
-    _monetizationMode = filters.monetizationMode;
+    _deliveryRegion = filters.deliveryRegion;
     _minDiscount = filters.minDiscount;
     _maxPrice = filters.maxPrice ?? _safeMaxPrice;
     _usePriceLimit = filters.maxPrice != null;
@@ -85,7 +85,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
       platform: _platform,
       category: _category,
       shipToCountry: _shipToCountry,
-      monetizationMode: _monetizationMode,
+      deliveryRegion: _deliveryRegion,
       minDiscount: _minDiscount,
       maxPrice: _usePriceLimit ? _maxPrice : null,
       minRating: _minRating,
@@ -99,7 +99,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
       _platform = 'All';
       _category = 'All';
       _shipToCountry = 'All';
-      _monetizationMode = 'All';
+      _deliveryRegion = 'All';
       _minDiscount = 0;
       _maxPrice = _safeMaxPrice;
       _usePriceLimit = false;
@@ -220,6 +220,20 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                       ),
                     ),
                     _Section(
+                      icon: Icons.travel_explore_rounded,
+                      title: AppStrings.select(
+                        en: 'Delivery region',
+                        ru: 'Регион доставки',
+                        uz: 'Yetkazib berish hududi',
+                      ),
+                      child: _ChoiceWrap(
+                        values: widget.deliveryRegions,
+                        selectedValue: _deliveryRegion,
+                        labelBuilder: _deliveryRegionLabel,
+                        onSelected: (value) => setState(() => _deliveryRegion = value),
+                      ),
+                    ),
+                    _Section(
                       icon: Icons.public_rounded,
                       title: AppStrings.shipsTo,
                       child: _ChoiceWrap(
@@ -233,27 +247,6 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                               : widget.facets?.countForCountry(value) ?? 0,
                         ),
                         onSelected: (value) => setState(() => _shipToCountry = value),
-                      ),
-                    ),
-                    _Section(
-                      icon: Icons.account_balance_wallet_rounded,
-                      title: AppStrings.select(
-                        en: 'Link type',
-                        ru: 'Тип ссылки',
-                        uz: 'Havola turi',
-                      ),
-                      child: _ChoiceWrap(
-                        values: widget.monetizationModes,
-                        selectedValue: _monetizationMode,
-                        labelBuilder: (value) => _labelWithCount(
-                          value: value,
-                          allLabel: AppStrings.all,
-                          name: _monetizationModeLabel(value),
-                          count: value == 'All'
-                              ? widget.facets?.totalCount ?? 0
-                              : widget.facets?.countForMonetizationMode(value) ?? 0,
-                        ),
-                        onSelected: (value) => setState(() => _monetizationMode = value),
                       ),
                     ),
                     _Section(
@@ -358,25 +351,23 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     return value == 'All' ? allLabel : name ?? value;
   }
 
-  String _monetizationModeLabel(String value) {
+  String _deliveryRegionLabel(String value) {
     switch (value) {
-      case 'direct':
+      case 'All':
+        return AppStrings.all;
+      case 'global':
+        return AppStrings.select(en: 'Global', ru: 'Глобал', uz: 'Global');
+      case 'cis':
+        return AppStrings.select(en: 'CIS', ru: 'СНГ', uz: 'MDH');
+      case 'europe':
+        return AppStrings.select(en: 'Europe', ru: 'Европа', uz: 'Yevropa');
+      case 'usa':
+        return AppStrings.select(en: 'USA', ru: 'США', uz: 'AQSH');
+      case 'latam':
         return AppStrings.select(
-          en: 'Direct',
-          ru: 'Прямая',
-          uz: 'To‘g‘ridan-to‘g‘ri',
-        );
-      case 'affiliate':
-        return AppStrings.select(
-          en: 'Affiliate',
-          ru: 'Партнёрская',
-          uz: 'Hamkorlik',
-        );
-      case 'pending_affiliate':
-        return AppStrings.select(
-          en: 'Pending affiliate',
-          ru: 'Партнёрка ожидается',
-          uz: 'Hamkorlik kutilmoqda',
+          en: 'Latin America',
+          ru: 'Латинская Америка',
+          uz: 'Lotin Amerikasi',
         );
       default:
         return value;

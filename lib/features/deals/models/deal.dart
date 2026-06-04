@@ -15,6 +15,7 @@ class Deal {
     required this.freeShipping,
     required this.verified,
     required this.shipsTo,
+    this.deliveryRegions = const <String>[],
     this.providerId,
     this.monetizationMode = 'direct',
     this.hotDeal = false,
@@ -37,6 +38,7 @@ class Deal {
   final bool freeShipping;
   final bool verified;
   final List<String> shipsTo;
+  final List<String> deliveryRegions;
   final String? providerId;
   final String monetizationMode;
   final bool hotDeal;
@@ -60,6 +62,7 @@ class Deal {
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
+      deliveryRegions: _stringList(json['deliveryRegions'] ?? json['delivery_regions']),
       providerId: _nullableString(json['providerId'] ?? json['provider_id']),
       monetizationMode: _string(
         json['monetizationMode'] ?? json['monetization_mode'],
@@ -88,6 +91,7 @@ class Deal {
       'freeShipping': freeShipping,
       'verified': verified,
       'shipsTo': shipsTo,
+      'deliveryRegions': deliveryRegions,
       'providerId': providerId,
       'monetizationMode': monetizationMode,
       'hotDeal': hotDeal,

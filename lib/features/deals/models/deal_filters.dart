@@ -6,6 +6,7 @@ class DealFilters {
     this.platform = 'All',
     this.category = 'All',
     this.shipToCountry = 'All',
+    this.deliveryRegion = 'All',
     this.monetizationMode = 'All',
     this.minDiscount = 0,
     this.maxPrice,
@@ -17,6 +18,7 @@ class DealFilters {
   final String platform;
   final String category;
   final String shipToCountry;
+  final String deliveryRegion;
   final String monetizationMode;
   final int minDiscount;
   final double? maxPrice;
@@ -28,7 +30,7 @@ class DealFilters {
     return platform != 'All' ||
         category != 'All' ||
         shipToCountry != 'All' ||
-        monetizationMode != 'All' ||
+        deliveryRegion != 'All' ||
         minDiscount > 0 ||
         maxPrice != null ||
         minRating > 0 ||
@@ -42,7 +44,7 @@ class DealFilters {
     if (platform != 'All') count++;
     if (category != 'All') count++;
     if (shipToCountry != 'All') count++;
-    if (monetizationMode != 'All') count++;
+    if (deliveryRegion != 'All') count++;
     if (minDiscount > 0) count++;
     if (maxPrice != null) count++;
     if (minRating > 0) count++;
@@ -60,7 +62,7 @@ class DealFilters {
           _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(platform);
       final matchesCategory = category == 'All' || deal.category == category;
       final matchesCountry = shipToCountry == 'All' || deal.shipsTo.contains(shipToCountry);
-      final matchesMonetizationMode = monetizationMode == 'All' || deal.monetizationMode == monetizationMode;
+      final matchesDeliveryRegion = _matchesDeliveryRegion(deal, deliveryRegion);
       final matchesDiscount = deal.discountPercent >= minDiscount;
       final matchesPrice = maxPrice == null || deal.currentPrice <= maxPrice!;
       final matchesRating = deal.rating >= minRating;
@@ -70,7 +72,7 @@ class DealFilters {
       return matchesPlatform &&
           matchesCategory &&
           matchesCountry &&
-          matchesMonetizationMode &&
+          matchesDeliveryRegion &&
           matchesDiscount &&
           matchesPrice &&
           matchesRating &&
@@ -79,6 +81,16 @@ class DealFilters {
     }).toList();
   }
 
+
+
+
+  static bool _matchesDeliveryRegion(Deal deal, String selectedRegion) {
+    if (selectedRegion == 'All') return true;
+    final normalized = selectedRegion.trim().toLowerCase();
+    final regions = deal.deliveryRegions.map((value) => value.trim().toLowerCase()).toSet();
+    if (normalized == 'global') return regions.contains('global');
+    return regions.contains(normalized) || regions.contains('global');
+  }
 
   static String _publicMarketplaceLabel(String value) {
     final normalized = value.trim().toLowerCase();
@@ -98,6 +110,7 @@ class DealFilters {
     String? platform,
     String? category,
     String? shipToCountry,
+    String? deliveryRegion,
     String? monetizationMode,
     int? minDiscount,
     double? maxPrice,
@@ -110,6 +123,7 @@ class DealFilters {
       platform: platform ?? this.platform,
       category: category ?? this.category,
       shipToCountry: shipToCountry ?? this.shipToCountry,
+      deliveryRegion: deliveryRegion ?? this.deliveryRegion,
       monetizationMode: monetizationMode ?? this.monetizationMode,
       minDiscount: minDiscount ?? this.minDiscount,
       maxPrice: clearMaxPrice ? null : maxPrice ?? this.maxPrice,

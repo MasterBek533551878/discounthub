@@ -138,6 +138,7 @@ class DealsRepository:
         platform: str | None = None,
         category: str | None = None,
         ships_to: str | None = None,
+        delivery_region: str | None = None,
         min_discount: int | None = None,
         min_rating: float | None = None,
         max_price_usd: float | None = None,
@@ -153,6 +154,7 @@ class DealsRepository:
             platform=platform,
             category=category,
             ships_to=ships_to,
+            delivery_region=delivery_region,
             min_discount=min_discount,
             min_rating=min_rating,
             max_price_usd=max_price_usd,
@@ -196,6 +198,7 @@ class DealsRepository:
         platform: str | None = None,
         category: str | None = None,
         ships_to: str | None = None,
+        delivery_region: str | None = None,
         min_discount: int | None = None,
         min_rating: float | None = None,
         max_price_usd: float | None = None,
@@ -208,6 +211,7 @@ class DealsRepository:
             platform=platform,
             category=category,
             ships_to=ships_to,
+            delivery_region=delivery_region,
             min_discount=min_discount,
             min_rating=min_rating,
             max_price_usd=max_price_usd,
@@ -254,11 +258,16 @@ class DealsRepository:
             currencies = self._facet_counts_from_temp(connection, "currency")
             monetization_modes = self._facet_counts_from_temp(connection, "monetization_mode")
 
+            delivery_region_rows = connection.execute(
+                "SELECT delivery_regions FROM temp_facet_deals"
+            ).fetchall()
+
             ships_rows = connection.execute(
                 "SELECT ships_to FROM temp_facet_deals"
             ).fetchall()
 
         shipping_countries = self._shipping_country_counts(ships_rows)
+        delivery_regions = self._delivery_region_counts(delivery_region_rows)
         total = int(total_row["total"] if total_row is not None else 0)
 
         return {
@@ -266,6 +275,7 @@ class DealsRepository:
             "marketplaces": platforms,
             "categories": categories,
             "shipping_countries": shipping_countries,
+            "delivery_regions": delivery_regions,
             "currencies": currencies,
             "monetization_modes": monetization_modes,
             "min_price_usd": self._optional_float(range_row, "min_price_usd"),
@@ -403,6 +413,7 @@ class DealsRepository:
                     free_shipping,
                     verified,
                     ships_to,
+                    delivery_regions,
                     hot_deal,
                     lowest_price,
                     deal_score,
@@ -412,7 +423,7 @@ class DealsRepository:
                     discount_percent,
                     current_price_usd,
                     search_text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
@@ -431,6 +442,7 @@ class DealsRepository:
                     free_shipping = excluded.free_shipping,
                     verified = excluded.verified,
                     ships_to = excluded.ships_to,
+                    delivery_regions = excluded.delivery_regions,
                     hot_deal = excluded.hot_deal,
                     lowest_price = excluded.lowest_price,
                     deal_score = excluded.deal_score,
@@ -452,6 +464,7 @@ class DealsRepository:
         platform: str | None = None,
         category: str | None = None,
         ships_to: str | None = None,
+        delivery_region: str | None = None,
         min_discount: int | None = None,
         min_rating: float | None = None,
         max_price_usd: float | None = None,
@@ -485,6 +498,11 @@ class DealsRepository:
             if country:
                 clauses.append("ships_to LIKE ?")
                 params.append(f'%"{country}"%')
+
+        delivery_region_values = self._delivery_region_filter_values(delivery_region)
+        if delivery_region_values:
+            clauses.append("(" + " OR ".join("delivery_regions LIKE ?" for _ in delivery_region_values) + ")")
+            params.extend(f'%"{region}"%' for region in delivery_region_values)
 
         if min_discount is not None:
             clauses.append(f"{SQL_DISCOUNT_PERCENT} >= ?")
@@ -637,6 +655,120 @@ class DealsRepository:
             for country, count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))[:200]
         ]
 
+    def _delivery_region_counts(self, rows: list[sqlite3.Row]) -> list[dict[str, object]]:
+        counter: Counter[str] = Counter()
+        names = {
+            "global": "Global",
+            "cis": "CIS",
+            "europe": "Europe",
+            "usa": "USA",
+            "latam": "Latin America",
+        }
+        order = ["global", "cis", "europe", "usa", "latam"]
+
+        for row in rows:
+            raw = row["delivery_regions"] if "delivery_regions" in row.keys() else "[]"
+            try:
+                values = json.loads(raw or "[]")
+            except json.JSONDecodeError:
+                values = []
+            for value in self._normalize_delivery_regions(values):
+                counter[value] += 1
+
+        return [
+            {"id": region, "name": names[region], "count": counter[region]}
+            for region in order
+            if counter[region] > 0
+        ]
+
+    def _delivery_region_filter_values(self, value: str | None) -> list[str]:
+        if value is None:
+            return []
+        normalized = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+        aliases = {
+            "all": "",
+            "any": "",
+            "global": "global",
+            "worldwide": "global",
+            "cis": "cis",
+            "sng": "cis",
+            "снг": "cis",
+            "europe": "europe",
+            "eu": "europe",
+            "usa": "usa",
+            "us": "usa",
+            "latam": "latam",
+            "latin_america": "latam",
+        }
+        region = aliases.get(normalized, normalized)
+        if not region:
+            return []
+        if region == "global":
+            return ["global"]
+        if region in {"cis", "europe", "usa", "latam"}:
+            return [region, "global"]
+        return []
+
+    def _normalize_delivery_regions(self, raw_values: object) -> list[str]:
+        if not isinstance(raw_values, list):
+            return []
+
+        aliases = {
+            "global": "global",
+            "worldwide": "global",
+            "international": "global",
+            "cis": "cis",
+            "sng": "cis",
+            "снг": "cis",
+            "europe": "europe",
+            "eu": "europe",
+            "usa": "usa",
+            "us": "usa",
+            "united_states": "usa",
+            "latam": "latam",
+            "latin_america": "latam",
+        }
+        normalized: list[str] = []
+        for value in raw_values:
+            key = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+            mapped = aliases.get(key)
+            if mapped and mapped not in normalized:
+                normalized.append(mapped)
+        return normalized
+
+    def _delivery_regions_for_deal(self, deal: Deal) -> list[str]:
+        explicit = self._normalize_delivery_regions(deal.delivery_regions)
+        if explicit:
+            return explicit
+
+        text = " ".join(
+            str(part or "")
+            for part in (deal.platform, deal.provider_id, deal.product_url, deal.affiliate_url)
+        ).lower().replace("-", "_")
+
+        if "aliexpress" in text:
+            return ["global", "cis", "europe", "usa", "latam"]
+        if "mercado libre" in text or "mercadolibre" in text:
+            return ["latam"]
+        if "ebay_us" in text or "ebay us" in text or "motors_us" in text:
+            return ["usa"]
+        if any(value in text for value in ("ebay_gb", "ebay gb", "ebay_de", "ebay de", "ebay_fr", "ebay fr", "ebay_it", "ebay it", "ebay_es", "ebay es")):
+            return ["europe"]
+        if "ebay_au" in text or "ebay au" in text:
+            return ["global"]
+
+        countries = {str(country).upper().strip() for country in deal.ships_to}
+        if countries & {"UZ", "KZ", "KG", "TJ", "TM", "AZ", "AM", "GE", "MD", "BY"}:
+            return ["cis"]
+        if countries & {"US", "USA"}:
+            return ["usa"]
+        if countries & {"GB", "UK", "DE", "FR", "IT", "ES", "PL", "NL", "BE", "AT", "SE", "NO", "DK", "FI", "IE", "PT", "CZ", "SK", "HU", "RO", "BG", "GR"}:
+            return ["europe"]
+        if countries & {"MX", "BR", "AR", "CL", "CO", "PE", "UY", "EC", "VE", "PY", "BO"}:
+            return ["latam"]
+
+        return ["global"]
+
     def _optional_float(self, row: sqlite3.Row | None, key: str) -> float | None:
         if row is None or row[key] is None:
             return None
@@ -667,6 +799,7 @@ class DealsRepository:
             int(deal.free_shipping),
             int(deal.verified),
             json.dumps(deal.ships_to),
+            json.dumps(self._delivery_regions_for_deal(deal)),
             int(deal.hot_deal),
             int(deal.lowest_price),
             deal.deal_score,
@@ -730,6 +863,14 @@ class DealsRepository:
         except json.JSONDecodeError:
             ships_to = []
 
+        delivery_regions_raw = row["delivery_regions"] if "delivery_regions" in row.keys() else "[]"
+        try:
+            parsed_delivery_regions = json.loads(delivery_regions_raw or "[]")
+        except json.JSONDecodeError:
+            parsed_delivery_regions = []
+        if not isinstance(parsed_delivery_regions, list):
+            parsed_delivery_regions = []
+
         raw_monetization_mode = str(row["monetization_mode"] or "direct").strip()
         if raw_monetization_mode not in ("affiliate", "direct", "pending_affiliate"):
             raw_monetization_mode = "direct"
@@ -753,6 +894,7 @@ class DealsRepository:
             free_shipping=bool(row["free_shipping"]),
             verified=bool(row["verified"]),
             ships_to=[str(item).upper() for item in ships_to],
+            delivery_regions=self._normalize_delivery_regions(parsed_delivery_regions),
             hot_deal=bool(row["hot_deal"]),
             lowest_price=bool(row["lowest_price"]),
             deal_score=int(row["deal_score"]),

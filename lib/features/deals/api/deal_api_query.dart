@@ -7,6 +7,7 @@ class DealApiQuery {
     this.platform,
     this.category,
     this.shipToCountry,
+    this.deliveryRegion,
     this.monetizationMode,
     this.currency = '',
     this.minDiscount = 0,
@@ -23,6 +24,7 @@ class DealApiQuery {
   final String? platform;
   final String? category;
   final String? shipToCountry;
+  final String? deliveryRegion;
   final String? monetizationMode;
   final String currency;
   final int minDiscount;
@@ -45,7 +47,8 @@ class DealApiQuery {
       platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
       category: _emptyAllToNull(filters.category),
       shipToCountry: _emptyAllToNull(filters.shipToCountry),
-      monetizationMode: _emptyAllToNull(filters.monetizationMode),
+      deliveryRegion: _emptyAllToNull(filters.deliveryRegion),
+      monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
@@ -64,7 +67,8 @@ class DealApiQuery {
       platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
       category: _emptyAllToNull(filters.category),
       shipToCountry: _emptyAllToNull(filters.shipToCountry),
-      monetizationMode: _emptyAllToNull(filters.monetizationMode),
+      deliveryRegion: _emptyAllToNull(filters.deliveryRegion),
+      monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
@@ -80,6 +84,7 @@ class DealApiQuery {
     String? platform,
     String? category,
     String? shipToCountry,
+    String? deliveryRegion,
     String? monetizationMode,
     String? currency,
     int? minDiscount,
@@ -96,6 +101,7 @@ class DealApiQuery {
       platform: platform ?? this.platform,
       category: category ?? this.category,
       shipToCountry: shipToCountry ?? this.shipToCountry,
+      deliveryRegion: deliveryRegion ?? this.deliveryRegion,
       monetizationMode: monetizationMode ?? this.monetizationMode,
       currency: currency ?? this.currency,
       minDiscount: minDiscount ?? this.minDiscount,
@@ -126,6 +132,7 @@ class DealApiQuery {
     addTextParameter('platform', platform);
     addTextParameter('category', category);
     addTextParameter('ships_to', shipToCountry);
+    addTextParameter('delivery_region', deliveryRegion);
     addTextParameter('monetization_mode', monetizationMode);
 
     final normalizedCurrency = currency.trim().toUpperCase();

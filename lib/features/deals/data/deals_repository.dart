@@ -467,8 +467,8 @@ class DealsRepository {
       if (filters.platform != 'All') _facets.countForMarketplace(filters.platform),
       if (filters.category != 'All') _facets.countForCategory(filters.category),
       if (filters.shipToCountry != 'All') _facets.countForCountry(filters.shipToCountry),
-      if (filters.monetizationMode != 'All')
-        _facets.countForMonetizationMode(filters.monetizationMode),
+      if (filters.deliveryRegion != 'All')
+        _facets.countForDeliveryRegion(filters.deliveryRegion),
     ].where((count) => count > 0).toList(growable: false);
 
     if (selectedDimensions.isEmpty) {
@@ -515,6 +515,31 @@ class DealsRepository {
         .toSet()
         .toList();
     values.sort();
+    return includeAll ? ['All', ...values] : values;
+  }
+
+
+  List<String> getDeliveryRegions({bool includeAll = false}) {
+    final facetValues = _facets.deliveryRegions.map((item) => item.id).toList();
+    final ordered = <String>[
+      for (final value in const <String>['global', 'cis', 'europe', 'usa', 'latam'])
+        if (facetValues.contains(value)) value,
+    ];
+
+    if (ordered.isNotEmpty) {
+      return includeAll ? ['All', ...ordered] : ordered;
+    }
+
+    final values = _dataSource
+        .getDeals()
+        .expand((deal) => deal.deliveryRegions)
+        .toSet()
+        .toList();
+    values.sort();
+    if (values.isEmpty) {
+      const defaults = <String>['global', 'cis', 'europe', 'usa', 'latam'];
+      return includeAll ? ['All', ...defaults] : defaults;
+    }
     return includeAll ? ['All', ...values] : values;
   }
 
@@ -591,7 +616,8 @@ class DealsRepository {
         deal.description.toLowerCase().contains(query) ||
         deal.platform.toLowerCase().contains(query) ||
         deal.category.toLowerCase().contains(query) ||
-        deal.shipsTo.any((country) => country.toLowerCase().contains(query));
+        deal.shipsTo.any((country) => country.toLowerCase().contains(query)) ||
+        deal.deliveryRegions.any((region) => region.toLowerCase().contains(query));
   }
 
   bool _matchesFilters(Deal deal, DealFilters filters) {
@@ -601,7 +627,7 @@ class DealsRepository {
         _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(filters.platform);
     final matchesCategory = filters.category == 'All' || deal.category == filters.category;
     final matchesCountry = filters.shipToCountry == 'All' || deal.shipsTo.contains(filters.shipToCountry);
-    final matchesMonetizationMode = filters.monetizationMode == 'All' || deal.monetizationMode == filters.monetizationMode;
+    final matchesDeliveryRegion = _matchesDeliveryRegion(deal, filters.deliveryRegion);
     final matchesDiscount = deal.discountPercent >= filters.minDiscount;
     final matchesPrice = filters.maxPrice == null || deal.currentPrice <= filters.maxPrice!;
     final matchesRating = deal.rating >= filters.minRating;
@@ -611,12 +637,21 @@ class DealsRepository {
     return matchesPlatform &&
         matchesCategory &&
         matchesCountry &&
-        matchesMonetizationMode &&
+        matchesDeliveryRegion &&
         matchesDiscount &&
         matchesPrice &&
         matchesRating &&
         matchesFreeShipping &&
         matchesVerified;
+  }
+
+
+  bool _matchesDeliveryRegion(Deal deal, String selectedRegion) {
+    if (selectedRegion == 'All') return true;
+    final normalized = selectedRegion.trim().toLowerCase();
+    final regions = deal.deliveryRegions.map((value) => value.trim().toLowerCase()).toSet();
+    if (normalized == 'global') return regions.contains('global');
+    return regions.contains(normalized) || regions.contains('global');
   }
 
   List<Deal> _sorted(List<Deal> deals, DealSort sort) {

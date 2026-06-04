@@ -26,6 +26,7 @@ class DealApiDto {
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
+      deliveryRegions: _stringList(json['deliveryRegions'] ?? json['delivery_regions']),
       providerId: _nullableString(json['providerId'] ?? json['provider_id']),
       monetizationMode: _string(
         json['monetizationMode'] ?? json['monetization_mode'],

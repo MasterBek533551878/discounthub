@@ -107,6 +107,43 @@ def _ensure_deals_migrations(connection: sqlite3.Connection) -> None:
         definition="TEXT NOT NULL DEFAULT 'direct'",
     )
 
+    _ensure_column(
+        connection,
+        table="deals",
+        column="delivery_regions",
+        definition="TEXT NOT NULL DEFAULT '[]'",
+    )
+
+    # Backfill delivery-region buckets without reading any user location. These
+    # are product/source capabilities used by the public catalog filter.
+    connection.execute(
+        """
+        UPDATE deals
+        SET delivery_regions = CASE
+            WHEN LOWER(COALESCE(platform, '')) LIKE '%aliexpress%'
+                THEN '["global","cis","europe","usa","latam"]'
+            WHEN LOWER(COALESCE(platform, '')) LIKE '%mercado libre%'
+                THEN '["latam"]'
+            WHEN LOWER(COALESCE(platform, '')) LIKE 'ebay us%'
+              OR LOWER(COALESCE(platform, '')) LIKE '%motors_us%'
+              OR LOWER(COALESCE(provider_id, '')) LIKE '%ebay%us%'
+                THEN '["usa"]'
+            WHEN LOWER(COALESCE(platform, '')) LIKE 'ebay gb%'
+              OR LOWER(COALESCE(platform, '')) LIKE 'ebay de%'
+              OR LOWER(COALESCE(platform, '')) LIKE 'ebay fr%'
+              OR LOWER(COALESCE(platform, '')) LIKE 'ebay it%'
+              OR LOWER(COALESCE(platform, '')) LIKE 'ebay es%'
+                THEN '["europe"]'
+            WHEN LOWER(COALESCE(platform, '')) LIKE 'ebay au%'
+                THEN '["global"]'
+            ELSE '["global"]'
+        END
+        WHERE delivery_regions IS NULL
+           OR TRIM(delivery_regions) = ''
+           OR TRIM(delivery_regions) = '[]'
+        """
+    )
+
     # Existing rows from older builds did not know whether a link was affiliate/direct.
     # Use affiliate_url as the safest backwards-compatible signal.
     connection.execute(

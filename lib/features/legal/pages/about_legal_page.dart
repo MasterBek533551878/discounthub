@@ -44,24 +44,6 @@ class AboutLegalPage extends StatelessWidget {
             title: AppStrings.legalResponsibilityTitle,
             body: AppStrings.legalResponsibilityBody,
           ),
-          const SizedBox(height: 12),
-          _LegalSection(
-            icon: Icons.lock_rounded,
-            title: AppStrings.legalPrivacyTitle,
-            body: AppStrings.legalPrivacyBody,
-          ),
-          const SizedBox(height: 12),
-          _LegalSection(
-            icon: Icons.support_agent_rounded,
-            title: AppStrings.legalContactTitle,
-            body: AppStrings.legalContactBody,
-          ),
-          const SizedBox(height: 12),
-          _LegalSection(
-            icon: Icons.science_rounded,
-            title: AppStrings.legalAppStatusTitle,
-            body: AppStrings.legalAppStatusBody,
-          ),
         ],
       ),
     );

@@ -47,7 +47,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
   List<String> get _platforms => _repository.getPlatforms(includeAll: true);
   List<String> get _categories => _repository.getCategories(includeAll: true);
   List<String> get _countries => _repository.getShippingCountries(includeAll: true);
-  List<String> get _monetizationModes => _repository.getMonetizationModes(includeAll: true);
+  List<String> get _deliveryRegions => _repository.getDeliveryRegions(includeAll: true);
 
   List<String> get _quickCategories {
     return _categories.where((item) => item != 'All').take(5).toList();
@@ -129,7 +129,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
           platforms: _platforms,
           categories: _categories,
           countries: _countries,
-          monetizationModes: _monetizationModes,
+          deliveryRegions: _deliveryRegions,
           maxAvailablePrice: _repository.maxAvailablePrice,
           facets: _repository.facets,
         );
