@@ -255,6 +255,7 @@ class FeedImportService:
         items: list[dict[str, Any]] = []
         scanned = 0
         skipped_by_discount = 0
+        skipped_by_stock = 0
         for row in reader:
             scanned += 1
             if max_scan_rows is not None and scanned > max_scan_rows:
@@ -262,6 +263,10 @@ class FeedImportService:
 
             item = self._csv_row_to_item(row=row, normalized_headers=normalized_headers)
             if not item:
+                continue
+
+            if self._raw_is_out_of_stock(item):
+                skipped_by_stock += 1
                 continue
 
             if min_discount_percent is not None:
@@ -281,6 +286,8 @@ class FeedImportService:
                     "CSV feed was reachable, but no rows passed "
                     f"min discount {min_discount_percent:g}% within the first {scanned} scanned row(s)."
                 )
+            if skipped_by_stock:
+                reason += f" Skipped {skipped_by_stock} explicit out-of-stock row(s)."
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
 
         return items
@@ -320,6 +327,45 @@ class FeedImportService:
         if current is None or old is None or old <= 0 or current <= 0 or old <= current:
             return None
         return ((old - current) / old) * 100
+
+    def _raw_is_out_of_stock(self, item: dict[str, Any]) -> bool:
+        stock_text = " ".join(
+            str(item.get(key, "")).strip().lower()
+            for key in (
+                "availability",
+                "g_availability",
+                "g:availability",
+                "stock",
+                "stock_status",
+                "availability_status",
+                "status",
+                "in_stock",
+                "instock",
+                "is_available",
+                "available",
+            )
+            if item.get(key) not in (None, "")
+        )
+        if not stock_text:
+            return False
+
+        bad_markers = (
+            "out of stock",
+            "out_of_stock",
+            "sold out",
+            "sold_out",
+            "unavailable",
+            "not available",
+            "not_available",
+            "discontinued",
+            "ended",
+            "expired",
+        )
+        if any(marker in stock_text for marker in bad_markers):
+            return True
+
+        negative_exact = {"0", "0.0", "false", "no", "n", "off"}
+        return stock_text in negative_exact
 
     def _raw_number(self, item: dict[str, Any], *keys: str) -> float | None:
         for key in keys:

@@ -8,7 +8,9 @@ param(
   [int]$TimeoutSeconds = 60,
   [int]$MaxItemsPerFeed = 2000,
   [int]$MaxScanRows = 25000,
-  [int]$MinDiscountPercent = 10
+  [int]$MinDiscountPercent = 10,
+  [string[]]$ExcludedProgramIds = @("6115"),
+  [switch]$IncludeKnownBrokenAliExpressWW
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,6 +82,10 @@ $settings = Get-AdmitadSettings -EnvPath $EnvPath
 $token = Get-AdmitadAccessToken -Settings $settings -Scope $Scope
 Write-Host "Admitad token: OK (not printed)"
 Write-Host "Safe sync limits: maxItems=$MaxItemsPerFeed, maxScanRows=$MaxScanRows, minDiscount=$MinDiscountPercent%"
+if ($ExcludedProgramIds.Count -gt 0 -and -not $IncludeKnownBrokenAliExpressWW) {
+  Write-Host ("Excluded Admitad campaign IDs: {0}" -f ($ExcludedProgramIds -join ", "))
+  Write-Host "Note: campaign 6115 (AliExpress WW) is excluded by default because real click tests opened the AliExpress homepage even when productUrl worked."
+}
 
 $active = Invoke-AdmitadGet -Settings $settings -AccessToken $token.access_token -PathAndQuery "/advcampaigns/website/$($settings.WebsiteId)/?limit=$Limit&connection_status=active&has_tool=products"
 $activeItems = @(Get-AdmitadResultsArray $active)
@@ -95,6 +101,11 @@ foreach ($program in $activeItems) {
   $csvUrl = Get-AdmitadCsvFeedUrl -Program $program
   $programName = [string]$program.name
   $programId = [string]$program.id
+
+  if ($ExcludedProgramIds -contains $programId -and -not $IncludeKnownBrokenAliExpressWW) {
+    $skipped += "$programName ($programId) -> excluded by DiscountHub quarantine: deeplinks open marketplace homepage instead of product pages"
+    continue
+  }
 
   if ([string]::IsNullOrWhiteSpace($csvUrl)) {
     $skipped += "$programName ($programId) -> no CSV product feed URL in API response"

@@ -15,6 +15,7 @@ from app.models.deal import (
 )
 from app.repositories.deals_repository import DealsRepository
 from app.services.deals_service import DealNotFoundError, deals_service
+from app.services.admitad_deeplink_service import admitad_deeplink_service
 
 router = APIRouter(tags=["deals"])
 
@@ -41,9 +42,13 @@ def _safe_click_target_for_deal(deal: DealResponse) -> str | None:
             or affiliate_url
         )
 
-    repaired_admitad = _repair_admitad_aliexpress_url(affiliate_url, product_url=product_url)
-    if repaired_admitad:
-        return repaired_admitad
+    admitad_target = admitad_deeplink_service.build_click_target(
+        provider_id=deal.provider_id,
+        affiliate_url=affiliate_url,
+        product_url=product_url,
+    )
+    if admitad_target:
+        return admitad_target
 
     return _safe_click_target(affiliate_url) or _safe_click_target(product_url)
 
@@ -69,32 +74,9 @@ def _safe_click_target(raw_url: str | None) -> str | None:
 
 
 def _repair_admitad_aliexpress_url(url: str | None, *, product_url: str | None = None) -> str | None:
-    if not url:
+    if not admitad_deeplink_service.is_admitad_tracking_url(url):
         return None
-
-    parsed = urllib.parse.urlparse(url.strip())
-    host = parsed.netloc.lower()
-    if not any(domain in host for domain in ("rzekl.com", "rztekl.com", "ad.admitad.com")):
-        return None
-
-    final_target = _extract_aliexpress_product_url(product_url or "")
-    params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-    if not final_target:
-        ulp_values = params.get("ulp")
-        if ulp_values:
-            final_target = _extract_aliexpress_product_url(ulp_values[0])
-    if not final_target:
-        return None
-
-    # Use Admitad's canonical tracking host for deep links. Some shortened
-    # domains (rzekl/rztekl) can behave like a standard affiliate link and land
-    # on the AliExpress homepage even when we append `ulp`. The canonical
-    # Admitad deeplink format is: ad.admitad.com/g/<code>/?ulp=<encoded target>.
-    params["ulp"] = [final_target]
-    repaired_query = urllib.parse.urlencode(params, doseq=True)
-    path = parsed.path or "/"
-    return urllib.parse.urlunparse(("https", "ad.admitad.com", path, "", repaired_query, ""))
-
+    return admitad_deeplink_service.build_manual_deeplink(url, product_url)
 
 def _extract_aliexpress_product_url(value: str) -> str | None:
     if not value:

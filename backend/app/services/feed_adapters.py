@@ -6,6 +6,8 @@ import urllib.parse
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services.admitad_deeplink_service import admitad_deeplink_service
+
 from fastapi import HTTPException, status
 
 from app.models.deal import DealUpsertRequest
@@ -388,10 +390,49 @@ class FeedAdapterService:
 
     def _normalize_admitad(self, item: dict[str, Any]) -> dict[str, Any]:
         title = self._pick_string(item, "name", "title", "product_name", "productname") or "Untitled Admitad product"
-        raw_product_url = self._pick_string(item, "url", "product_url", "producturl")
-        raw_affiliate_url = self._pick_string(item, "gotolink", "go_to_link", "deeplink", "deep_link", "tracking_url") or raw_product_url or "https://www.admitad.com/"
-        product_url = self._extract_aliexpress_product_url(raw_product_url or raw_affiliate_url or "") or raw_product_url
-        affiliate_url = self._repair_admitad_aliexpress_url(raw_affiliate_url, product_url) or raw_affiliate_url
+        raw_product_url = self._pick_string(
+            item,
+            "url",
+            "product_url",
+            "productUrl",
+            "producturl",
+            "link",
+            "product_link",
+            "productLink",
+            "merchant_product_url",
+            "merchant_deep_link",
+            "target_url",
+            "dl_target_url",
+            "landing_page",
+        )
+        raw_affiliate_url = (
+            self._pick_string(
+                item,
+                "gotolink",
+                "goto_link",
+                "go_to_link",
+                "deeplink",
+                "deep_link",
+                "tracking_url",
+                "affiliate_url",
+            )
+            or raw_product_url
+            or "https://www.admitad.com/"
+        )
+
+        # Admitad product feeds can put a default tracking link in `gotolink`
+        # and the real product page in a separate URL column. Build a generic
+        # product deeplink only for Admitad here; eBay/Awin paths are untouched.
+        product_url = (
+            admitad_deeplink_service.extract_target_url(raw_product_url)
+            or admitad_deeplink_service.extract_target_url(raw_affiliate_url)
+            or raw_product_url
+        )
+        affiliate_url = (
+            admitad_deeplink_service.build_manual_deeplink(raw_affiliate_url, product_url)
+            or product_url
+            or raw_affiliate_url
+        )
         current = self._pick_number(item, "price", "sale_price", "current_price", "product_price", "search_price") or 1
         old = self._pick_number(item, "oldprice", "old_price", "original_price", "rrp", "retail_price", "was_price") or current
         raw_id = self._pick_string(item, "id", "product_id", "productid", "sku") or self._stable_id(item, prefix="admitad")
@@ -659,60 +700,21 @@ class FeedAdapterService:
         }
 
     def _repair_admitad_aliexpress_url(self, url: str | None, product_url: str | None) -> str | None:
-        if not url:
-            return None
-        parsed = urllib.parse.urlparse(url.strip())
-        host = parsed.netloc.lower()
-        if not any(domain in host for domain in ("rzekl.com", "rztekl.com", "ad.admitad.com")):
-            return None
+        return admitad_deeplink_service.build_manual_deeplink(url, product_url)
 
-        target = self._extract_aliexpress_product_url(product_url or "")
-        params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-        if not target:
-            ulp_values = params.get("ulp")
-            if ulp_values:
-                target = self._extract_aliexpress_product_url(ulp_values[0])
-        if not target:
-            return None
+    def _build_admitad_deeplink(self, base_url: str | None, product_url: str | None) -> str | None:
+        return admitad_deeplink_service.build_manual_deeplink(base_url, product_url)
 
-        # Store canonical Admitad deeplinks instead of shortened rzekl/rztekl
-        # links. The canonical format is more reliable for product-level landing
-        # pages and keeps the same tracking code/path.
-        params["ulp"] = [target]
-        query = urllib.parse.urlencode(params, doseq=True)
-        path = parsed.path or "/"
-        return urllib.parse.urlunparse(("https", "ad.admitad.com", path, "", query, ""))
+    def _is_admitad_tracking_url(self, url: str | None) -> bool:
+        return admitad_deeplink_service.is_admitad_tracking_url(url)
 
     def _extract_aliexpress_product_url(self, value: str | None) -> str | None:
-        if not value:
+        target = admitad_deeplink_service.extract_target_url(value)
+        if not target:
             return None
-
-        candidates = [value]
-        current = value
-        for _ in range(3):
-            decoded = urllib.parse.unquote(current)
-            if decoded == current:
-                break
-            candidates.append(decoded)
-            current = decoded
-
-        for candidate in candidates:
-            parsed = urllib.parse.urlparse(candidate)
-            host = parsed.netloc.lower()
-            if "aliexpress." in host and "/item/" in parsed.path:
-                return urllib.parse.urlunparse(parsed._replace(query="", fragment=""))
-
-            nested_params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-            for key in ("dl_target_url", "target_url", "url", "ulp"):
-                for nested in nested_params.get(key, []):
-                    found = self._extract_aliexpress_product_url(nested)
-                    if found:
-                        return found
-
-            match = re.search(r"https?://(?:www\.)?aliexpress\.[^\s'\"<>]+/item/\d+\.html", candidate)
-            if match:
-                return match.group(0).split("?")[0]
-
+        parsed = urllib.parse.urlparse(target)
+        if "aliexpress." in parsed.netloc.lower() and "/item/" in parsed.path:
+            return urllib.parse.urlunparse(parsed._replace(query="", fragment=""))
         return None
 
     def _canonical_ebay_item_url(self, url: str | None, *, item_id: str, marketplace_id: str) -> str | None:

@@ -275,6 +275,9 @@ class EbayBrowseService:
             if self._is_ended_listing(item):
                 continue
 
+            if self._is_unavailable_item(item):
+                continue
+
             price = self._nested_number(item, "price", "value")
             if min_price is not None and price is not None and price < min_price:
                 continue
@@ -338,6 +341,69 @@ class EbayBrowseService:
         except ValueError:
             return False
         return parsed < datetime.now(timezone.utc)
+
+    def _is_unavailable_item(self, item: dict[str, Any]) -> bool:
+        """Reject eBay rows that explicitly say the item is not purchasable.
+
+        Browse API search summaries do not always include stock data, so missing
+        availability is treated as unknown and allowed. But when eBay gives
+        `OUT_OF_STOCK`, `UNAVAILABLE`, or an explicit zero quantity, the item is
+        bad UX for DiscountHub and should not be imported.
+        """
+        availability_rows: list[Any] = []
+        estimated = item.get("estimatedAvailabilities")
+        if isinstance(estimated, list):
+            availability_rows.extend(estimated)
+
+        for key in (
+            "availability",
+            "availabilityStatus",
+            "estimatedAvailabilityStatus",
+            "itemAvailabilityStatus",
+        ):
+            value = item.get(key)
+            if value not in (None, ""):
+                availability_rows.append(value)
+
+        if not availability_rows:
+            return False
+
+        bad_status_markers = (
+            "OUT_OF_STOCK",
+            "OUT OF STOCK",
+            "SOLD_OUT",
+            "SOLD OUT",
+            "UNAVAILABLE",
+            "NOT_AVAILABLE",
+            "NOT AVAILABLE",
+            "ENDED",
+        )
+        quantity_keys = (
+            "estimatedAvailableQuantity",
+            "availableQuantity",
+            "quantityAvailable",
+            "quantity",
+        )
+
+        for row in availability_rows:
+            if isinstance(row, dict):
+                status_text = " ".join(
+                    str(row.get(key) or "").strip().upper()
+                    for key in ("estimatedAvailabilityStatus", "availabilityStatus", "status")
+                )
+                if status_text and any(marker in status_text for marker in bad_status_markers):
+                    return True
+                for key in quantity_keys:
+                    quantity = self._number_from_value(row.get(key))
+                    if quantity is not None and quantity <= 0:
+                        return True
+                continue
+
+            status_text = str(row or "").strip().upper()
+            if status_text and any(marker in status_text for marker in bad_status_markers):
+                return True
+
+        return False
 
     def _seller_meets_quality_bar(
         self,
@@ -418,7 +484,9 @@ class EbayBrowseService:
         return current
 
     def _nested_number(self, item: dict[str, Any], *path: str) -> float | None:
-        value = self._nested_value(item, *path)
+        return self._number_from_value(self._nested_value(item, *path))
+
+    def _number_from_value(self, value: Any) -> float | None:
         if value is None or value == "":
             return None
         if isinstance(value, int | float):

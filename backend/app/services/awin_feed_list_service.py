@@ -320,7 +320,6 @@ class AwinFeedListService:
                 "image",
             )
             current, old = self._awin_price_pair(item)
-            stock_text = (self._pick_string(item, "in_stock", "stock_status", "availability") or "").lower()
 
             if not title:
                 stats["missing_title"] += 1
@@ -334,7 +333,7 @@ class AwinFeedListService:
             if not current or current <= 0:
                 stats["missing_current_price"] += 1
                 continue
-            if stock_text and any(value in stock_text for value in ("false", "no", "out", "unavailable", "0")):
+            if self._is_out_of_stock(item):
                 stats["out_of_stock"] += 1
                 continue
 
@@ -467,6 +466,44 @@ class AwinFeedListService:
         if saving_percent and 0 < saving_percent < 100:
             return current / (1 - (saving_percent / 100))
         return None
+
+    def _is_out_of_stock(self, item: dict[str, Any]) -> bool:
+        stock_text = " ".join(
+            str(self._pick_string(item, key) or "").strip().lower()
+            for key in (
+                "in_stock",
+                "instock",
+                "stock",
+                "stock_status",
+                "availability",
+                "availability_status",
+                "g_availability",
+                "g:availability",
+                "is_available",
+                "available",
+            )
+            if self._pick_string(item, key) not in (None, "")
+        )
+        if not stock_text:
+            return False
+
+        bad_markers = (
+            "out of stock",
+            "out_of_stock",
+            "sold out",
+            "sold_out",
+            "unavailable",
+            "not available",
+            "not_available",
+            "discontinued",
+            "ended",
+            "expired",
+        )
+        if any(marker in stock_text for marker in bad_markers):
+            return True
+
+        negative_exact = {"0", "0.0", "false", "no", "n", "off"}
+        return stock_text in negative_exact
 
     def _fetch_text(self, feed_url: str, *, timeout_seconds: int) -> tuple[str, str]:
         try:

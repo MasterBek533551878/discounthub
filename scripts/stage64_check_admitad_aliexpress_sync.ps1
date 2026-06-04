@@ -6,7 +6,8 @@ param(
   [int]$TimeoutSeconds = 300,
   [int]$MaxItemsPerFeed = 2000,
   [int]$MaxScanRows = 25000,
-  [int]$MinDiscountPercent = 10
+  [int]$MinDiscountPercent = 10,
+  [switch]$ForceKnownBrokenAliExpressWW
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,6 +31,10 @@ if ([string]::IsNullOrWhiteSpace($AdminToken)) {
 }
 $headers = @{ "X-Admin-Token" = $AdminToken }
 
+if (-not $ForceKnownBrokenAliExpressWW) {
+  throw "Admitad AliExpress WW (campaign 6115) is quarantined: direct productUrl opens the product, but Admitad affiliate/deeplink URLs open the AliExpress homepage. Use -ForceKnownBrokenAliExpressWW only for diagnostics, not for production sync."
+}
+
 Write-Host "== DiscountHub Stage 64: Admitad AliExpress sync check =="
 Write-Host "API: $ApiBaseUrl"
 Write-Host "Provider: $ProviderId"
@@ -47,7 +52,8 @@ Write-Host "[1/5] Re-registering active Admitad feeds with safe limits"
   -AdminToken $AdminToken `
   -MaxItemsPerFeed $MaxItemsPerFeed `
   -MaxScanRows $MaxScanRows `
-  -MinDiscountPercent $MinDiscountPercent
+  -MinDiscountPercent $MinDiscountPercent `
+  -IncludeKnownBrokenAliExpressWW
 
 Write-Host ""
 Write-Host "[2/5] Provider after registration"
