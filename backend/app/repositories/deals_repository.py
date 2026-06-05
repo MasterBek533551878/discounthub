@@ -36,7 +36,19 @@ END
 SQL_CURRENT_PRICE_USD = "current_price_usd"
 SQL_DISCOUNT_PERCENT = "discount_percent"
 SQL_REAL_DISCOUNT_ONLY = "(old_price > current_price AND discount_percent >= 1)"
-SQL_PUBLIC_FRESH_DEAL_ONLY = "(updated_at IS NOT NULL AND datetime(updated_at) >= datetime('now', '-72 hours'))"
+SQL_PUBLIC_FRESH_DEAL_ONLY = (
+    "("
+    "updated_at IS NOT NULL AND ("
+    "("
+    "monetization_mode = 'affiliate' "
+    "AND datetime(updated_at) >= datetime('now', '-7 days')"
+    ") OR ("
+    "COALESCE(monetization_mode, 'direct') != 'affiliate' "
+    "AND datetime(updated_at) >= datetime('now', '-72 hours')"
+    ")"
+    ")"
+    ")"
+)
 SQL_DEDUPE_KEY = """
 LOWER(TRIM(COALESCE(platform, ''))) || '|' ||
 LOWER(TRIM(COALESCE(title, ''))) || '|' ||
