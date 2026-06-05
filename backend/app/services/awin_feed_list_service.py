@@ -22,6 +22,8 @@ class AwinFeedListOptions:
     max_items_per_feed: int
     min_discount_percent: int
     joined_only: bool
+    advertiser_id: str = ""
+    advertiser_name: str = ""
 
 
 class AwinFeedListService:
@@ -163,7 +165,12 @@ class AwinFeedListService:
                 maximum=95,
             ),
             joined_only=self._bool_value(query.get("joined_only", ["true"])[0], default=True),
+            advertiser_id=self._clean_query_value(query.get("advertiser_id", query.get("merchant_id", [""]))[0]),
+            advertiser_name=self._clean_query_value(query.get("advertiser_name", query.get("merchant_name", [""]))[0]),
         )
+
+    def _clean_query_value(self, value: object) -> str:
+        return str(value or "").strip()
 
     def _resolve_feed_list_url(self, provider_url: str) -> str:
         settings = get_settings()
@@ -203,6 +210,12 @@ class AwinFeedListService:
             seen_urls.add(raw_url)
             advertiser_name = self._pick_string(row, *self._ADVERTISER_KEYS) or "Awin advertiser"
             advertiser_id = self._pick_string(row, *self._ADVERTISER_ID_KEYS) or ""
+
+            if options.advertiser_id and advertiser_id.strip().lower() != options.advertiser_id.strip().lower():
+                continue
+            if options.advertiser_name and options.advertiser_name.strip().lower() not in advertiser_name.strip().lower():
+                continue
+
             feeds.append(
                 _AwinFeedRow(
                     feed_url=raw_url,
