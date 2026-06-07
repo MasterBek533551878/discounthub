@@ -88,7 +88,7 @@ class DealsService:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[DealResponse], int]:
-        normalized_category = normalize_category(category) if category else None
+        normalized_category = self._normalize_category_filter(category)
         max_price_usd = self._convert_amount(max_price, currency, "USD") if max_price is not None else None
 
         deals, total = self._repository.query_deals(
@@ -127,7 +127,7 @@ class DealsService:
         monetization_mode: DealMonetizationMode | None = None,
     ) -> DealsFacetsResponse:
         target_currency = currency.upper().strip() or "USD"
-        normalized_category = normalize_category(category) if category else None
+        normalized_category = self._normalize_category_filter(category)
         max_price_usd = self._convert_amount(max_price, target_currency, "USD") if max_price is not None else None
 
         cache_key = self._facets_cache_key(
@@ -249,6 +249,21 @@ class DealsService:
 
     def count_deals(self) -> int:
         return self._repository.count_deals()
+
+    def _normalize_category_filter(self, category: str | None) -> str | None:
+        if not category:
+            return None
+
+        values: list[str] = []
+        for raw_item in str(category).split(","):
+            item = raw_item.strip()
+            if not item or item.lower() == "all":
+                continue
+            normalized = normalize_category(item)
+            if normalized not in values:
+                values.append(normalized)
+
+        return ",".join(values) if values else None
 
     def _facets_cache_key(self, **values: object) -> str:
         normalized = {

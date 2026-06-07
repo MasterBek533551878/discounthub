@@ -5,6 +5,18 @@ import '../../settings/app_strings.dart';
 import '../../settings/settings_store.dart';
 import '../api/deal_facets.dart';
 import '../models/deal_filters.dart';
+import '../models/deal_query.dart';
+
+
+class DealFilterSheetResult {
+  const DealFilterSheetResult({
+    required this.filters,
+    required this.sort,
+  });
+
+  final DealFilters filters;
+  final DealSort sort;
+}
 
 class DealFilterSheet extends StatefulWidget {
   const DealFilterSheet({
@@ -12,8 +24,7 @@ class DealFilterSheet extends StatefulWidget {
     required this.initialFilters,
     required this.platforms,
     required this.categories,
-    required this.countries,
-    required this.deliveryRegions,
+    required this.initialSort,
     required this.maxAvailablePrice,
     this.facets,
   });
@@ -21,8 +32,7 @@ class DealFilterSheet extends StatefulWidget {
   final DealFilters initialFilters;
   final List<String> platforms;
   final List<String> categories;
-  final List<String> countries;
-  final List<String> deliveryRegions;
+  final DealSort initialSort;
   final double maxAvailablePrice;
   final DealFacets? facets;
 
@@ -31,16 +41,12 @@ class DealFilterSheet extends StatefulWidget {
 }
 
 class _DealFilterSheetState extends State<DealFilterSheet> {
-  late String _platform;
-  late String _category;
-  late String _shipToCountry;
-  late String _deliveryRegion;
+  late Set<String> _selectedPlatforms;
+  late Set<String> _selectedCategories;
   late int _minDiscount;
   late double _maxPrice;
   late bool _usePriceLimit;
-  late double _minRating;
-  late bool _freeShippingOnly;
-  late bool _verifiedOnly;
+  late DealSort _sort;
 
   final TextEditingController _marketplaceSearchController = TextEditingController();
   String _marketplaceSearchText = '';
@@ -62,16 +68,12 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     super.initState();
 
     final filters = widget.initialFilters;
-    _platform = filters.platform;
-    _category = filters.category;
-    _shipToCountry = filters.shipToCountry;
-    _deliveryRegion = filters.deliveryRegion;
+    _selectedPlatforms = filters.selectedPlatforms.toSet();
+    _selectedCategories = filters.selectedCategories.toSet();
     _minDiscount = filters.minDiscount;
     _maxPrice = filters.maxPrice ?? _safeMaxPrice;
     _usePriceLimit = filters.maxPrice != null;
-    _minRating = filters.minRating;
-    _freeShippingOnly = filters.freeShippingOnly;
-    _verifiedOnly = filters.verifiedOnly;
+    _sort = widget.initialSort;
   }
 
   @override
@@ -82,37 +84,64 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
 
   DealFilters get _currentFilters {
     return DealFilters(
-      platform: _platform,
-      category: _category,
-      shipToCountry: _shipToCountry,
-      deliveryRegion: _deliveryRegion,
+      platformSelections: _selectedPlatforms.toList(growable: false),
+      categorySelections: _selectedCategories.toList(growable: false),
       minDiscount: _minDiscount,
       maxPrice: _usePriceLimit ? _maxPrice : null,
-      minRating: _minRating,
-      freeShippingOnly: _freeShippingOnly,
-      verifiedOnly: _verifiedOnly,
     );
   }
 
   void _clear() {
     setState(() {
-      _platform = 'All';
-      _category = 'All';
-      _shipToCountry = 'All';
-      _deliveryRegion = 'All';
+      _selectedPlatforms = <String>{};
+      _selectedCategories = <String>{};
       _minDiscount = 0;
       _maxPrice = _safeMaxPrice;
       _usePriceLimit = false;
-      _minRating = 0;
-      _freeShippingOnly = false;
-      _verifiedOnly = false;
+      _sort = DealSort.discountHighToLow;
       _marketplaceSearchText = '';
       _marketplaceSearchController.clear();
     });
   }
 
   void _apply() {
-    Navigator.of(context).pop(_currentFilters);
+    Navigator.of(context).pop(
+      DealFilterSheetResult(
+        filters: _currentFilters,
+        sort: _sort,
+      ),
+    );
+  }
+
+
+  void _togglePlatform(String value) {
+    setState(() {
+      if (value == 'All') {
+        _selectedPlatforms.clear();
+        return;
+      }
+
+      if (_selectedPlatforms.contains(value)) {
+        _selectedPlatforms.remove(value);
+      } else {
+        _selectedPlatforms.add(value);
+      }
+    });
+  }
+
+  void _toggleCategory(String value) {
+    setState(() {
+      if (value == 'All') {
+        _selectedCategories.clear();
+        return;
+      }
+
+      if (_selectedCategories.contains(value)) {
+        _selectedCategories.remove(value);
+      } else {
+        _selectedCategories.add(value);
+      }
+    });
   }
 
   @override
@@ -154,9 +183,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                     const SizedBox(height: 4),
                     Text(
                       AppStrings.select(
-                        en: 'Choose a marketplace, category, delivery region or discount level to narrow the deals feed.',
-                        ru: 'Выберите маркетплейс, категорию, регион доставки или уровень скидки, чтобы сузить ленту.',
-                        uz: 'Takliflar lentasini qisqartirish uchun marketplace, kategoriya, yetkazib berish hududi yoki chegirma darajasini tanlang.',
+                        en: 'Choose a store, category, discount level, price limit or sorting for the main feed.',
+                        ru: 'Выберите магазин, категорию, уровень скидки, лимит цены или сортировку для главной ленты.',
+                        uz: 'Asosiy lenta uchun do‘kon, kategoriya, chegirma darajasi, narx limiti yoki tartibni tanlang.',
                       ),
                       style: const TextStyle(
                         color: AppTheme.mutedText,
@@ -186,9 +215,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _ChoiceWrap(
+                          _MultiChoiceWrap(
                             values: _visiblePlatforms,
-                            selectedValue: _platform,
+                            selectedValues: _selectedPlatforms,
                             labelBuilder: (value) => _labelWithCount(
                               value: value,
                               allLabel: AppStrings.all,
@@ -197,7 +226,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                                   ? widget.facets?.totalCount ?? 0
                                   : widget.facets?.countForMarketplace(value) ?? 0,
                             ),
-                            onSelected: (value) => setState(() => _platform = value),
+                            onSelected: _togglePlatform,
                           ),
                         ],
                       ),
@@ -205,9 +234,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                     _Section(
                       icon: Icons.category_rounded,
                       title: AppStrings.category,
-                      child: _ChoiceWrap(
+                      child: _MultiChoiceWrap(
                         values: widget.categories,
-                        selectedValue: _category,
+                        selectedValues: _selectedCategories,
                         labelBuilder: (value) => _labelWithCount(
                           value: value,
                           allLabel: AppStrings.all,
@@ -216,57 +245,37 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                               ? widget.facets?.totalCount ?? 0
                               : widget.facets?.countForCategory(value) ?? 0,
                         ),
-                        onSelected: (value) => setState(() => _category = value),
-                      ),
-                    ),
-                    _Section(
-                      icon: Icons.travel_explore_rounded,
-                      title: AppStrings.select(
-                        en: 'Delivery region',
-                        ru: 'Регион доставки',
-                        uz: 'Yetkazib berish hududi',
-                      ),
-                      child: _ChoiceWrap(
-                        values: widget.deliveryRegions,
-                        selectedValue: _deliveryRegion,
-                        labelBuilder: _deliveryRegionLabel,
-                        onSelected: (value) => setState(() => _deliveryRegion = value),
-                      ),
-                    ),
-                    _Section(
-                      icon: Icons.public_rounded,
-                      title: AppStrings.shipsTo,
-                      child: _ChoiceWrap(
-                        values: widget.countries,
-                        selectedValue: _shipToCountry,
-                        labelBuilder: (value) => _labelWithCount(
-                          value: value,
-                          allLabel: AppStrings.all,
-                          count: value == 'All'
-                              ? widget.facets?.totalCount ?? 0
-                              : widget.facets?.countForCountry(value) ?? 0,
-                        ),
-                        onSelected: (value) => setState(() => _shipToCountry = value),
+                        onSelected: _toggleCategory,
                       ),
                     ),
                     _Section(
                       icon: Icons.percent_rounded,
                       title: AppStrings.minimumDiscount,
                       child: _ChoiceWrap<int>(
-                        values: const [0, 20, 30, 40, 50],
+                        values: const [0, 10, 20, 30, 40, 50, 70],
                         selectedValue: _minDiscount,
                         labelBuilder: (value) => value == 0 ? AppStrings.any : '$value%+',
                         onSelected: (value) => setState(() => _minDiscount = value),
                       ),
                     ),
                     _Section(
-                      icon: Icons.star_rounded,
-                      title: AppStrings.minimumRating,
-                      child: _ChoiceWrap<double>(
-                        values: const [0, 4.0, 4.5],
-                        selectedValue: _minRating,
-                        labelBuilder: (value) => value == 0 ? AppStrings.any : '${value.toStringAsFixed(1)}+',
-                        onSelected: (value) => setState(() => _minRating = value),
+                      icon: Icons.sort_rounded,
+                      title: AppStrings.select(
+                        en: 'Sort by',
+                        ru: 'Сортировка',
+                        uz: 'Saralash',
+                      ),
+                      child: _ChoiceWrap<DealSort>(
+                        values: const [
+                          DealSort.discountHighToLow,
+                          DealSort.bestMatch,
+                          DealSort.newest,
+                          DealSort.priceLowToHigh,
+                          DealSort.priceHighToLow,
+                        ],
+                        selectedValue: _sort,
+                        labelBuilder: _sortLabel,
+                        onSelected: (value) => setState(() => _sort = value),
                       ),
                     ),
                     _Section(
@@ -278,26 +287,6 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                         safeMaxPrice: _safeMaxPrice,
                         onToggle: (value) => setState(() => _usePriceLimit = value),
                         onPriceChanged: (value) => setState(() => _maxPrice = value),
-                      ),
-                    ),
-                    _Section(
-                      icon: Icons.verified_rounded,
-                      title: AppStrings.dealQuality,
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          FilterChip(
-                            label: Text(AppStrings.freeShippingOnly),
-                            selected: _freeShippingOnly,
-                            onSelected: (value) => setState(() => _freeShippingOnly = value),
-                          ),
-                          FilterChip(
-                            label: Text(AppStrings.verifiedDealsOnly),
-                            selected: _verifiedOnly,
-                            onSelected: (value) => setState(() => _verifiedOnly = value),
-                          ),
-                        ],
                       ),
                     ),
                   ],
@@ -351,28 +340,25 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     return value == 'All' ? allLabel : name ?? value;
   }
 
-  String _deliveryRegionLabel(String value) {
+
+
+  String _sortLabel(DealSort value) {
     switch (value) {
-      case 'All':
-        return AppStrings.all;
-      case 'global':
-        return AppStrings.select(en: 'Global', ru: 'Глобал', uz: 'Global');
-      case 'cis':
-        return AppStrings.select(en: 'CIS', ru: 'СНГ', uz: 'MDH');
-      case 'europe':
-        return AppStrings.select(en: 'Europe', ru: 'Европа', uz: 'Yevropa');
-      case 'usa':
-        return AppStrings.select(en: 'USA', ru: 'США', uz: 'AQSH');
-      case 'latam':
-        return AppStrings.select(
-          en: 'Latin America',
-          ru: 'Латинская Америка',
-          uz: 'Lotin Amerikasi',
-        );
-      default:
-        return value;
+      case DealSort.discountHighToLow:
+        return AppStrings.select(en: 'Biggest discount', ru: 'Самая большая скидка', uz: 'Eng katta chegirma');
+      case DealSort.bestMatch:
+        return AppStrings.select(en: 'Best match', ru: 'Лучшие сначала', uz: 'Eng yaxshilari');
+      case DealSort.newest:
+        return AppStrings.select(en: 'Newest', ru: 'Новые', uz: 'Yangi');
+      case DealSort.priceLowToHigh:
+        return AppStrings.select(en: 'Lowest price', ru: 'Сначала дешёвые', uz: 'Arzonlari oldin');
+      case DealSort.priceHighToLow:
+        return AppStrings.select(en: 'Highest price', ru: 'Сначала дорогие', uz: 'Qimmatlari oldin');
+      case DealSort.ratingHighToLow:
+        return AppStrings.select(en: 'Highest rating', ru: 'Высокий рейтинг', uz: 'Yuqori reyting');
     }
   }
+
 }
 
 class _Section extends StatelessWidget {
@@ -486,6 +472,7 @@ class _PriceLimitCard extends StatelessWidget {
   }
 }
 
+
 class _ChoiceWrap<T> extends StatelessWidget {
   const _ChoiceWrap({
     required this.values,
@@ -506,6 +493,46 @@ class _ChoiceWrap<T> extends StatelessWidget {
       runSpacing: 8,
       children: values.map((value) {
         final selected = value == selectedValue;
+        final label = labelBuilder?.call(value) ?? value.toString();
+
+        return ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onSelected(value),
+          selectedColor: AppTheme.primary,
+          labelStyle: TextStyle(
+            color: selected ? Colors.white : AppTheme.text,
+            fontWeight: FontWeight.w900,
+          ),
+          side: BorderSide(color: selected ? AppTheme.primary : AppTheme.line),
+          backgroundColor: Colors.white,
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MultiChoiceWrap<T> extends StatelessWidget {
+  const _MultiChoiceWrap({
+    required this.values,
+    required this.selectedValues,
+    required this.onSelected,
+    this.labelBuilder,
+  });
+
+  final List<T> values;
+  final Set<T> selectedValues;
+  final ValueChanged<T> onSelected;
+  final String Function(T value)? labelBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: values.map((value) {
+        final isAll = value == 'All';
+        final selected = isAll ? selectedValues.isEmpty : selectedValues.contains(value);
         final label = labelBuilder?.call(value) ?? value.toString();
 
         return ChoiceChip(

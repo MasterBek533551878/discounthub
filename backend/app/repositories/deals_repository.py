@@ -496,14 +496,17 @@ class DealsRepository:
             clauses.append("search_text LIKE ?")
             params.append(query)
 
-        if platform:
-            normalized_platform = platform.strip().lower()
-            clauses.append("LOWER(public_platform) = ?")
-            params.append(normalized_platform)
+        platform_values = self._split_filter_values(platform)
+        if platform_values:
+            placeholders = ", ".join("?" for _ in platform_values)
+            clauses.append(f"LOWER(public_platform) IN ({placeholders})")
+            params.extend(value.lower() for value in platform_values)
 
-        if category:
-            clauses.append("LOWER(category) = ?")
-            params.append(category.strip().lower())
+        category_values = self._split_filter_values(category)
+        if category_values:
+            placeholders = ", ".join("?" for _ in category_values)
+            clauses.append(f"LOWER(category) IN ({placeholders})")
+            params.extend(value.lower() for value in category_values)
 
         if ships_to:
             country = ships_to.strip().upper()
@@ -692,6 +695,19 @@ class DealsRepository:
             for region in order
             if counter[region] > 0
         ]
+
+    def _split_filter_values(self, value: str | None) -> list[str]:
+        if not value:
+            return []
+
+        values: list[str] = []
+        for raw_item in str(value).split(","):
+            item = raw_item.strip()
+            if not item or item.lower() == "all":
+                continue
+            if item not in values:
+                values.append(item)
+        return values
 
     def _delivery_region_filter_values(self, value: str | None) -> list[str]:
         if value is None:

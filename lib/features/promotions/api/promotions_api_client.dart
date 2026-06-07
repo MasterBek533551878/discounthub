@@ -18,6 +18,8 @@ class PromotionsApiClient {
   Future<PromotionApiPage> getPromotions({
     String? query,
     String? type,
+    String? store,
+    List<String> stores = const <String>[],
     int page = 1,
     int pageSize = 50,
   }) async {
@@ -27,6 +29,10 @@ class PromotionsApiClient {
       'sort': 'featured',
       if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
       if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+      if (stores.isNotEmpty)
+        'store': stores.map((value) => value.trim()).where((value) => value.isNotEmpty).join(',')
+      else if (store != null && store.trim().isNotEmpty)
+        'store': store.trim(),
     };
 
     final response = await _httpClient

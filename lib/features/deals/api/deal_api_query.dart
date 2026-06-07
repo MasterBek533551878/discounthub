@@ -5,7 +5,9 @@ class DealApiQuery {
   const DealApiQuery({
     this.searchText = '',
     this.platform,
+    this.platforms = const <String>[],
     this.category,
+    this.categories = const <String>[],
     this.shipToCountry,
     this.deliveryRegion,
     this.monetizationMode,
@@ -22,7 +24,9 @@ class DealApiQuery {
 
   final String searchText;
   final String? platform;
+  final List<String> platforms;
   final String? category;
+  final List<String> categories;
   final String? shipToCountry;
   final String? deliveryRegion;
   final String? monetizationMode;
@@ -44,17 +48,12 @@ class DealApiQuery {
 
     return DealApiQuery(
       searchText: query.searchText,
-      platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
-      category: _emptyAllToNull(filters.category),
-      shipToCountry: _emptyAllToNull(filters.shipToCountry),
-      deliveryRegion: _emptyAllToNull(filters.deliveryRegion),
+      platforms: _publicMarketplaceFilters(filters.selectedPlatforms),
+      categories: _nonEmptyAllValues(filters.selectedCategories),
       monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
-      minRating: filters.minRating,
-      freeShippingOnly: filters.freeShippingOnly,
-      verifiedOnly: filters.verifiedOnly,
       sort: query.sort,
     );
   }
@@ -64,25 +63,21 @@ class DealApiQuery {
     String currency = '',
   }) {
     return DealApiQuery(
-      platform: _publicMarketplaceFilter(_emptyAllToNull(filters.platform)),
-      category: _emptyAllToNull(filters.category),
-      shipToCountry: _emptyAllToNull(filters.shipToCountry),
-      deliveryRegion: _emptyAllToNull(filters.deliveryRegion),
+      platforms: _publicMarketplaceFilters(filters.selectedPlatforms),
+      categories: _nonEmptyAllValues(filters.selectedCategories),
       monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
       maxPrice: filters.maxPrice,
-      minRating: filters.minRating,
-      freeShippingOnly: filters.freeShippingOnly,
-      verifiedOnly: filters.verifiedOnly,
     );
   }
-
 
   DealApiQuery copyWith({
     String? searchText,
     String? platform,
+    List<String>? platforms,
     String? category,
+    List<String>? categories,
     String? shipToCountry,
     String? deliveryRegion,
     String? monetizationMode,
@@ -99,7 +94,9 @@ class DealApiQuery {
     return DealApiQuery(
       searchText: searchText ?? this.searchText,
       platform: platform ?? this.platform,
+      platforms: platforms ?? this.platforms,
       category: category ?? this.category,
+      categories: categories ?? this.categories,
       shipToCountry: shipToCountry ?? this.shipToCountry,
       deliveryRegion: deliveryRegion ?? this.deliveryRegion,
       monetizationMode: monetizationMode ?? this.monetizationMode,
@@ -128,9 +125,22 @@ class DealApiQuery {
       parameters[key] = normalized;
     }
 
+    void addMultiTextParameter(
+      String key,
+      List<String> values, {
+      String? fallback,
+    }) {
+      final normalized = _nonEmptyAllValues(values);
+      if (normalized.isNotEmpty) {
+        parameters[key] = normalized.join(',');
+        return;
+      }
+      addTextParameter(key, fallback);
+    }
+
     addTextParameter('q', searchText);
-    addTextParameter('platform', platform);
-    addTextParameter('category', category);
+    addMultiTextParameter('platform', platforms, fallback: platform);
+    addMultiTextParameter('category', categories, fallback: category);
     addTextParameter('ships_to', shipToCountry);
     addTextParameter('delivery_region', deliveryRegion);
     addTextParameter('monetization_mode', monetizationMode);
@@ -159,9 +169,19 @@ class DealApiQuery {
     return parameters;
   }
 
+  static List<String> _publicMarketplaceFilters(List<String> values) {
+    final normalizedValues = <String>[];
+    for (final value in values) {
+      final mapped = _publicMarketplaceFilter(value);
+      if (mapped == null || normalizedValues.contains(mapped)) continue;
+      normalizedValues.add(mapped);
+    }
+    return List<String>.unmodifiable(normalizedValues);
+  }
+
   static String? _publicMarketplaceFilter(String? value) {
     final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty) return null;
+    if (normalized == null || normalized.isEmpty || normalized == 'All') return null;
 
     final lower = normalized.toLowerCase();
     if (lower.startsWith('ebay')) return 'eBay';
@@ -172,18 +192,30 @@ class DealApiQuery {
     return normalized;
   }
 
-  static String? _emptyAllToNull(String value) {
-    final normalized = value.trim();
-    if (normalized.isEmpty || normalized == 'All') return null;
-    return normalized;
+  static List<String> _nonEmptyAllValues(List<String> values) {
+    final normalizedValues = <String>[];
+    for (final rawValue in values) {
+      final value = rawValue.trim();
+      if (value.isEmpty || value == 'All') continue;
+      if (!normalizedValues.contains(value)) {
+        normalizedValues.add(value);
+      }
+    }
+    return List<String>.unmodifiable(normalizedValues);
   }
 
   static String _sortValue(DealSort sort) {
     switch (sort) {
+      case DealSort.bestMatch:
+        return 'score_desc';
       case DealSort.discountHighToLow:
         return 'discount_desc';
+      case DealSort.newest:
+        return 'newest';
       case DealSort.priceLowToHigh:
         return 'price_asc';
+      case DealSort.priceHighToLow:
+        return 'price_desc';
       case DealSort.ratingHighToLow:
         return 'rating_desc';
     }

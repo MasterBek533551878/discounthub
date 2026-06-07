@@ -31,6 +31,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
   final ScrollController _scrollController = ScrollController();
 
   DealFilters _filters = const DealFilters();
+  DealSort _sort = DealSort.discountHighToLow;
   String _searchText = '';
   Timer? _searchDebounce;
 
@@ -46,18 +47,19 @@ class _DealsHomePageState extends State<DealsHomePage> {
 
   List<String> get _platforms => _repository.getPlatforms(includeAll: true);
   List<String> get _categories => _repository.getCategories(includeAll: true);
-  List<String> get _countries => _repository.getShippingCountries(includeAll: true);
-  List<String> get _deliveryRegions => _repository.getDeliveryRegions(includeAll: true);
-
   List<String> get _quickCategories {
     return _categories.where((item) => item != 'All').take(5).toList();
+  }
+
+  int get _activeFilterCount {
+    return _filters.activeCount + (_sort == DealSort.discountHighToLow ? 0 : 1);
   }
 
   DealQuery get _currentQuery {
     return DealQuery(
       searchText: _searchText,
       filters: _filters,
-      sort: DealSort.discountHighToLow,
+      sort: _sort,
     );
   }
 
@@ -119,7 +121,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
   }
 
   Future<void> _openAdvancedFilters() async {
-    final result = await showModalBottomSheet<DealFilters>(
+    final result = await showModalBottomSheet<DealFilterSheetResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.background,
@@ -128,8 +130,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
           initialFilters: _filters,
           platforms: _platforms,
           categories: _categories,
-          countries: _countries,
-          deliveryRegions: _deliveryRegions,
+          initialSort: _sort,
           maxAvailablePrice: _repository.maxAvailablePrice,
           facets: _repository.facets,
         );
@@ -137,7 +138,10 @@ class _DealsHomePageState extends State<DealsHomePage> {
     );
 
     if (result == null) return;
-    setState(() => _filters = result);
+    setState(() {
+      _filters = result.filters;
+      _sort = result.sort;
+    });
     _loadServerDeals();
   }
 
@@ -265,14 +269,30 @@ class _DealsHomePageState extends State<DealsHomePage> {
   }
 
   void _clearFilters() {
-    setState(() => _filters = const DealFilters());
+    setState(() {
+      _filters = const DealFilters();
+      _sort = DealSort.discountHighToLow;
+    });
     _loadServerDeals();
   }
 
   void _selectCategory(String category) {
     setState(() {
+      if (category == 'All') {
+        _filters = _filters.copyWith(clearCategories: true);
+        return;
+      }
+
+      final selected = _filters.selectedCategories.toSet();
+      if (selected.contains(category)) {
+        selected.remove(category);
+      } else {
+        selected.add(category);
+      }
+
       _filters = _filters.copyWith(
-        category: _filters.category == category ? 'All' : category,
+        category: 'All',
+        categorySelections: selected.toList(growable: false),
       );
     });
     _loadServerDeals();
@@ -305,7 +325,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
                     _SearchAndActionsBar(
                       controller: _searchController,
                       query: _searchText,
-                      activeFilterCount: _filters.activeCount,
+                      activeFilterCount: _activeFilterCount,
                       onChanged: _onSearchChanged,
                       onClearSearch: _clearSearch,
                       onOpenFilters: _openAdvancedFilters,
@@ -324,7 +344,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
                     const SizedBox(height: 18),
                     _CategorySection(
                       categories: ['All', ..._quickCategories],
-                      selectedCategory: _filters.category,
+                      selectedCategories: _filters.selectedCategories.toSet(),
                       onSelected: _selectCategory,
                     ),
                     if (_filters.hasActiveFilters || _searchText.trim().isNotEmpty) ...[
@@ -751,12 +771,12 @@ class _InlineStatusBanner extends StatelessWidget {
 class _CategorySection extends StatelessWidget {
   const _CategorySection({
     required this.categories,
-    required this.selectedCategory,
+    required this.selectedCategories,
     required this.onSelected,
   });
 
   final List<String> categories;
-  final String selectedCategory;
+  final Set<String> selectedCategories;
   final ValueChanged<String> onSelected;
 
   @override
@@ -786,7 +806,9 @@ class _CategorySection extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: categories.map((category) {
-              final selected = selectedCategory == category;
+              final selected = category == 'All'
+                  ? selectedCategories.isEmpty
+                  : selectedCategories.contains(category);
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: _CategoryChip(

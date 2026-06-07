@@ -22,6 +22,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
 
   Future<PromotionsLoadResult>? _future;
   String? _selectedType;
+  final Set<String> _selectedStores = <String>{};
+  List<String> _knownStores = const <String>[];
   Timer? _searchDebounce;
 
   @override
@@ -37,11 +39,37 @@ class _PromotionsPageState extends State<PromotionsPage> {
     super.dispose();
   }
 
-  Future<PromotionsLoadResult> _loadPromotions() {
-    return _repository.loadPromotions(
+  Future<PromotionsLoadResult> _loadPromotions() async {
+    final result = await _repository.loadPromotions(
       query: _searchController.text,
       type: _selectedType,
+      stores: _selectedStores.toList(growable: false),
     );
+    _rememberStores(result.promotions);
+    return result;
+  }
+
+  void _rememberStores(List<Promotion> promotions) {
+    final stores = List<String>.of(_knownStores);
+    for (final promotion in promotions) {
+      final store = promotion.store.trim();
+      if (store.isEmpty) continue;
+      final exists = stores.any((value) => value.toLowerCase() == store.toLowerCase());
+      if (!exists) stores.add(store);
+    }
+
+    stores.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    var unchanged = stores.length == _knownStores.length;
+    if (unchanged) {
+      for (var index = 0; index < stores.length; index += 1) {
+        if (stores[index] != _knownStores[index]) {
+          unchanged = false;
+          break;
+        }
+      }
+    }
+    if (unchanged || !mounted) return;
+    setState(() => _knownStores = List.unmodifiable(stores));
   }
 
   Future<void> _refresh() async {
@@ -66,6 +94,19 @@ class _PromotionsPageState extends State<PromotionsPage> {
     if (_selectedType == type) return;
     setState(() {
       _selectedType = type;
+      _future = _loadPromotions();
+    });
+  }
+
+  void _toggleStore(String? store) {
+    setState(() {
+      if (store == null || store.trim().isEmpty) {
+        _selectedStores.clear();
+      } else if (_selectedStores.contains(store)) {
+        _selectedStores.remove(store);
+      } else {
+        _selectedStores.add(store);
+      }
       _future = _loadPromotions();
     });
   }
@@ -141,6 +182,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   selectedType: _selectedType,
                   onSelected: _setType,
                 ),
+                if (_knownStores.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _PromotionStoreFilters(
+                    stores: _knownStores,
+                    selectedStores: _selectedStores,
+                    onSelected: _toggleStore,
+                  ),
+                ],
                 if (isLoading) ...[
                   const SizedBox(height: 16),
                   const LinearProgressIndicator(minHeight: 3),
@@ -304,6 +353,64 @@ class _PromotionSearchField extends StatelessWidget {
                 icon: const Icon(Icons.close_rounded),
               ),
       ),
+    );
+  }
+}
+
+
+class _PromotionStoreFilters extends StatelessWidget {
+  const _PromotionStoreFilters({
+    required this.stores,
+    required this.selectedStores,
+    required this.onSelected,
+  });
+
+  final List<String> stores;
+  final Set<String> selectedStores;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppStrings.select(en: 'Store', ru: 'Магазин', uz: 'Do‘kon'),
+          style: const TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                selected: selectedStores.isEmpty,
+                label: Text(
+                  AppStrings.select(
+                    en: 'All stores',
+                    ru: 'Все магазины',
+                    uz: 'Barcha do‘konlar',
+                  ),
+                ),
+                onSelected: (_) => onSelected(null),
+              ),
+              const SizedBox(width: 8),
+              for (final store in stores) ...[
+                ChoiceChip(
+                  selected: selectedStores.contains(store),
+                  label: Text(store),
+                  onSelected: (_) => onSelected(store),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

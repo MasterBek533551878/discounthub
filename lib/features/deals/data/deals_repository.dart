@@ -13,7 +13,6 @@ import '../models/deal.dart';
 import '../models/deal_filters.dart';
 import '../models/deal_query.dart';
 import '../models/deal_search_result.dart';
-import '../utils/deal_insights.dart';
 import 'api_deals_data_source.dart';
 import 'deals_data_source.dart';
 import 'fake_deals_data_source.dart';
@@ -438,7 +437,7 @@ class DealsRepository {
   List<Deal> getDealsByCategory(String category) {
     return searchDeals(
       DealQuery(
-        filters: DealFilters(category: category),
+        filters: DealFilters(categorySelections: <String>[category]),
       ),
     ).deals;
   }
@@ -457,18 +456,18 @@ class DealsRepository {
     if (hasSearch) return fallback;
 
     final hasRangeOrQualityFilters = filters.minDiscount > 0 ||
-        filters.maxPrice != null ||
-        filters.minRating > 0 ||
-        filters.freeShippingOnly ||
-        filters.verifiedOnly;
+        filters.maxPrice != null;
     if (hasRangeOrQualityFilters) return fallback;
 
     final selectedDimensions = <int>[
-      if (filters.platform != 'All') _facets.countForMarketplace(filters.platform),
-      if (filters.category != 'All') _facets.countForCategory(filters.category),
-      if (filters.shipToCountry != 'All') _facets.countForCountry(filters.shipToCountry),
-      if (filters.deliveryRegion != 'All')
-        _facets.countForDeliveryRegion(filters.deliveryRegion),
+      if (filters.selectedPlatforms.isNotEmpty)
+        filters.selectedPlatforms
+            .map(_facets.countForMarketplace)
+            .fold<int>(0, (total, count) => total + count),
+      if (filters.selectedCategories.isNotEmpty)
+        filters.selectedCategories
+            .map(_facets.countForCategory)
+            .fold<int>(0, (total, count) => total + count),
     ].where((count) => count > 0).toList(growable: false);
 
     if (selectedDimensions.isEmpty) {
@@ -623,46 +622,46 @@ class DealsRepository {
   bool _matchesFilters(Deal deal, DealFilters filters) {
     if (!deal.hasRealDiscount) return false;
 
-    final matchesPlatform = filters.platform == 'All' ||
-        _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(filters.platform);
-    final matchesCategory = filters.category == 'All' || deal.category == filters.category;
-    final matchesCountry = filters.shipToCountry == 'All' || deal.shipsTo.contains(filters.shipToCountry);
-    final matchesDeliveryRegion = _matchesDeliveryRegion(deal, filters.deliveryRegion);
+    final selectedPlatforms = filters.selectedPlatforms
+        .map(_publicMarketplaceLabel)
+        .toSet();
+    final selectedCategories = filters.selectedCategories.toSet();
+
+    final matchesPlatform = selectedPlatforms.isEmpty ||
+        selectedPlatforms.contains(_publicMarketplaceLabel(deal.platform));
+    final matchesCategory = selectedCategories.isEmpty ||
+        selectedCategories.contains(deal.category);
     final matchesDiscount = deal.discountPercent >= filters.minDiscount;
     final matchesPrice = filters.maxPrice == null || deal.currentPrice <= filters.maxPrice!;
-    final matchesRating = deal.rating >= filters.minRating;
-    final matchesFreeShipping = !filters.freeShippingOnly || DealInsights.hasFreeShippingToSelectedCountry(deal);
-    final matchesVerified = !filters.verifiedOnly || deal.verified;
 
     return matchesPlatform &&
         matchesCategory &&
-        matchesCountry &&
-        matchesDeliveryRegion &&
         matchesDiscount &&
-        matchesPrice &&
-        matchesRating &&
-        matchesFreeShipping &&
-        matchesVerified;
-  }
-
-
-  bool _matchesDeliveryRegion(Deal deal, String selectedRegion) {
-    if (selectedRegion == 'All') return true;
-    final normalized = selectedRegion.trim().toLowerCase();
-    final regions = deal.deliveryRegions.map((value) => value.trim().toLowerCase()).toSet();
-    if (normalized == 'global') return regions.contains('global');
-    return regions.contains(normalized) || regions.contains('global');
+        matchesPrice;
   }
 
   List<Deal> _sorted(List<Deal> deals, DealSort sort) {
     final sorted = [...deals];
 
     switch (sort) {
+      case DealSort.bestMatch:
+        sorted.sort((a, b) => b.dealScore.compareTo(a.dealScore));
+        break;
       case DealSort.discountHighToLow:
         sorted.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
         break;
+      case DealSort.newest:
+        sorted.sort((a, b) {
+          final aUpdated = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bUpdated = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return bUpdated.compareTo(aUpdated);
+        });
+        break;
       case DealSort.priceLowToHigh:
         sorted.sort((a, b) => a.currentPrice.compareTo(b.currentPrice));
+        break;
+      case DealSort.priceHighToLow:
+        sorted.sort((a, b) => b.currentPrice.compareTo(a.currentPrice));
         break;
       case DealSort.ratingHighToLow:
         sorted.sort((a, b) => b.rating.compareTo(a.rating));

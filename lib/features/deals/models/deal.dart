@@ -21,6 +21,7 @@ class Deal {
     this.hotDeal = false,
     this.lowestPrice = false,
     this.dealScore = 0,
+    this.updatedAt,
   });
 
   final String id;
@@ -44,6 +45,7 @@ class Deal {
   final bool hotDeal;
   final bool lowestPrice;
   final int dealScore;
+  final DateTime? updatedAt;
 
   factory Deal.fromJson(Map<String, dynamic> json) {
     return Deal(
@@ -71,6 +73,7 @@ class Deal {
       hotDeal: _bool(json['hotDeal'] ?? json['hot_deal']),
       lowestPrice: _bool(json['lowestPrice'] ?? json['lowest_price']),
       dealScore: _int(json['dealScore'] ?? json['deal_score']),
+      updatedAt: _dateTime(json['updatedAt'] ?? json['updated_at']),
     );
   }
 
@@ -97,6 +100,7 @@ class Deal {
       'hotDeal': hotDeal,
       'lowestPrice': lowestPrice,
       'dealScore': dealScore,
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
@@ -125,6 +129,14 @@ class Deal {
   String get formattedOldPrice => '$currency ${oldPrice.toStringAsFixed(2)}';
 
   String get formattedSavedAmount => '$currency ${savedAmount.toStringAsFixed(2)}';
+
+  static DateTime? _dateTime(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value.trim());
+    }
+    return null;
+  }
 
   static String _string(dynamic value, {String fallback = ''}) {
     if (value is String && value.trim().isNotEmpty) return value.trim();

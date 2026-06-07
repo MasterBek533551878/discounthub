@@ -165,11 +165,27 @@ class PromotionsRepository:
             clauses.append("type = ?")
             params.append(type)
 
-        if store and store.strip():
-            clauses.append("LOWER(TRIM(store)) = LOWER(TRIM(?))")
-            params.append(store.strip())
+        store_values = self._split_filter_values(store)
+        if store_values:
+            placeholders = ", ".join("?" for _ in store_values)
+            clauses.append(f"LOWER(TRIM(store)) IN ({placeholders})")
+            params.extend(value.lower() for value in store_values)
 
         return f"WHERE {' AND '.join(clauses)}", tuple(params)
+
+    def _split_filter_values(self, value: str | None) -> list[str]:
+        if not value:
+            return []
+
+        values: list[str] = []
+        for raw_item in str(value).split(","):
+            item = raw_item.strip()
+            if not item or item.lower() == "all":
+                continue
+            normalized = item.lower()
+            if normalized not in values:
+                values.append(normalized)
+        return values
 
     def _sort_sql(self, sort: PromotionSort) -> str:
         if sort == "ending_soon":

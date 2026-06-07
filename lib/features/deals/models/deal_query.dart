@@ -1,8 +1,11 @@
 import 'deal_filters.dart';
 
 enum DealSort {
+  bestMatch,
   discountHighToLow,
+  newest,
   priceLowToHigh,
+  priceHighToLow,
   ratingHighToLow,
 }
 

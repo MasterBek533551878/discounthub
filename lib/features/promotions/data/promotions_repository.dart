@@ -26,6 +26,8 @@ class PromotionsRepository {
   Future<PromotionsLoadResult> loadPromotions({
     String? query,
     String? type,
+    String? store,
+    List<String> stores = const <String>[],
   }) async {
     Object? lastError;
 
@@ -38,6 +40,8 @@ class PromotionsRepository {
         final page = await apiClient.getPromotions(
           query: query,
           type: type,
+          store: store,
+          stores: stores,
           pageSize: 50,
         );
         return PromotionsLoadResult(
