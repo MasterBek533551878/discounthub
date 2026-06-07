@@ -9,6 +9,7 @@ from app.api.routes import (
     admin_panel,
     deals,
     feed_providers,
+    promotions,
     health,
     security_status,
     settings as settings_routes,
@@ -54,6 +55,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(deals.router)
+app.include_router(promotions.router)
 app.include_router(settings_routes.router)
 app.include_router(storage.router)
 app.include_router(security_status.router)

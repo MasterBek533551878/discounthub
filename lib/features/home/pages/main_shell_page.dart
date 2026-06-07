@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_theme.dart';
 import '../../deals/pages/deals_home_page.dart';
+import '../../promotions/pages/promotions_page.dart';
 import '../../settings/app_strings.dart';
 import '../../settings/pages/settings_page.dart';
 import '../../settings/settings_store.dart';
@@ -23,6 +24,7 @@ class _MainShellPageState extends State<MainShellPage> {
       builder: (context, version, _) {
         final pages = [
           DealsHomePage(key: ValueKey('deals_$version')),
+          PromotionsPage(key: ValueKey('promotions_$version')),
           SettingsPage(key: ValueKey('settings_$version')),
         ];
 
@@ -57,6 +59,15 @@ class _MainShellPageState extends State<MainShellPage> {
                       icon: const Icon(Icons.home_outlined),
                       selectedIcon: const Icon(Icons.home_rounded),
                       label: AppStrings.tabDeals,
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.local_offer_outlined),
+                      selectedIcon: const Icon(Icons.local_offer_rounded),
+                      label: AppStrings.select(
+                        en: 'Promos',
+                        ru: 'Акции',
+                        uz: 'Aksiyalar',
+                      ),
                     ),
                     NavigationDestination(
                       icon: const Icon(Icons.settings_outlined),

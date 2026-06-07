@@ -125,3 +125,62 @@ CREATE_CLICK_EVENTS_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_click_events_monetization_mode ON click_events(monetization_mode);",
     "CREATE INDEX IF NOT EXISTS idx_click_events_clicked_at ON click_events(clicked_at);",
 ]
+
+
+CREATE_PROMOTIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotions (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL DEFAULT 'sale',
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    store TEXT NOT NULL,
+    discount_text TEXT NOT NULL DEFAULT '',
+    code TEXT,
+    landing_url TEXT NOT NULL,
+    affiliate_url TEXT,
+    image_url TEXT,
+    provider_id TEXT,
+    monetization_mode TEXT NOT NULL DEFAULT 'affiliate',
+    valid_from TEXT,
+    valid_until TEXT,
+    featured INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT ''
+);
+"""
+
+CREATE_PROMOTIONS_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_promotions_type ON promotions(type);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_store ON promotions(store);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_provider_id ON promotions(provider_id);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_monetization_mode ON promotions(monetization_mode);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_valid_until ON promotions(valid_until);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_featured ON promotions(featured);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_updated_at ON promotions(updated_at);",
+    "CREATE INDEX IF NOT EXISTS idx_promotions_search_text ON promotions(search_text);",
+]
+
+
+CREATE_PROMOTION_CLICK_EVENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS promotion_click_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    promotion_id TEXT NOT NULL,
+    store TEXT NOT NULL,
+    type TEXT NOT NULL,
+    provider_id TEXT,
+    monetization_mode TEXT NOT NULL DEFAULT 'affiliate',
+    target_url TEXT NOT NULL,
+    referrer TEXT,
+    user_agent TEXT,
+    ip_address TEXT,
+    clicked_at TEXT NOT NULL
+);
+"""
+
+CREATE_PROMOTION_CLICK_EVENTS_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_promotion_id ON promotion_click_events(promotion_id);",
+    "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_store ON promotion_click_events(store);",
+    "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_type ON promotion_click_events(type);",
+    "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_provider_id ON promotion_click_events(provider_id);",
+    "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_clicked_at ON promotion_click_events(clicked_at);",
+]

@@ -60,6 +60,10 @@ from app.db.schema import (
     CREATE_FEED_PROVIDERS_TABLE_SQL,
     CREATE_FEED_SYNC_RUNS_INDEXES_SQL,
     CREATE_FEED_SYNC_RUNS_TABLE_SQL,
+    CREATE_PROMOTION_CLICK_EVENTS_INDEXES_SQL,
+    CREATE_PROMOTION_CLICK_EVENTS_TABLE_SQL,
+    CREATE_PROMOTIONS_INDEXES_SQL,
+    CREATE_PROMOTIONS_TABLE_SQL,
 )
 
 
@@ -245,6 +249,54 @@ def _ensure_click_events_migrations(connection: sqlite3.Connection) -> None:
     )
 
 
+
+
+def _ensure_promotions_migrations(connection: sqlite3.Connection) -> None:
+    _ensure_column(
+        connection,
+        table="promotions",
+        column="search_text",
+        definition="TEXT NOT NULL DEFAULT ''",
+    )
+    connection.execute(
+        """
+        UPDATE promotions
+        SET search_text = LOWER(
+            COALESCE(title, '') || ' ' ||
+            COALESCE(description, '') || ' ' ||
+            COALESCE(store, '') || ' ' ||
+            COALESCE(discount_text, '') || ' ' ||
+            COALESCE(code, '') || ' ' ||
+            COALESCE(type, '')
+        )
+        WHERE search_text IS NULL OR TRIM(search_text) = ''
+        """
+    )
+
+
+def _ensure_promotion_click_events_migrations(connection: sqlite3.Connection) -> None:
+    _ensure_column(
+        connection,
+        table="promotion_click_events",
+        column="provider_id",
+        definition="TEXT",
+    )
+    _ensure_column(
+        connection,
+        table="promotion_click_events",
+        column="monetization_mode",
+        definition="TEXT NOT NULL DEFAULT 'affiliate'",
+    )
+    connection.execute(
+        """
+        UPDATE promotion_click_events
+        SET monetization_mode = 'affiliate'
+        WHERE monetization_mode IS NULL
+           OR TRIM(monetization_mode) = ''
+           OR monetization_mode NOT IN ('affiliate', 'direct', 'pending_affiliate')
+        """
+    )
+
 def initialize_database() -> None:
     from app.data.mock_deals import MOCK_DEALS
     from app.repositories.deals_repository import DealsRepository
@@ -292,6 +344,16 @@ def initialize_database() -> None:
         connection.execute(CREATE_CLICK_EVENTS_TABLE_SQL)
         _ensure_click_events_migrations(connection)
         for statement in CREATE_CLICK_EVENTS_INDEXES_SQL:
+            connection.execute(statement)
+
+        connection.execute(CREATE_PROMOTIONS_TABLE_SQL)
+        _ensure_promotions_migrations(connection)
+        for statement in CREATE_PROMOTIONS_INDEXES_SQL:
+            connection.execute(statement)
+
+        connection.execute(CREATE_PROMOTION_CLICK_EVENTS_TABLE_SQL)
+        _ensure_promotion_click_events_migrations(connection)
+        for statement in CREATE_PROMOTION_CLICK_EVENTS_INDEXES_SQL:
             connection.execute(statement)
 
         connection.commit()
