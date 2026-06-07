@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     awin_feed_max_items_per_feed: int = 80
     awin_feed_min_discount_percent: int = 10
 
+    # Awin Offers API / My Offers. This is separate from product feeds:
+    # it imports store-level promotions and voucher codes into /promotions.
+    # If AWIN_API_ACCESS_TOKEN is empty, the backend falls back to
+    # AWIN_DATAFEED_API_KEY because some publisher accounts use the same
+    # Toolbox token for API calls.
+    awin_api_base_url: str = "https://api.awin.com"
+    awin_api_access_token: str = ""
+
     # Mercado Libre direct marketplace adapter. Public search endpoints may be
     # blocked or require OAuth depending on site/account/app policy. Keep these
     # values empty until an official Mercado Libre developer app is configured.

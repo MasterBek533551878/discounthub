@@ -82,3 +82,25 @@ class PromotionUpsertRequest(ApiModel):
     valid_until: datetime | None = None
     featured: bool = False
     updated_at: datetime | None = None
+
+class AwinPromotionSyncRequest(ApiModel):
+    membership: Literal["joined", "notJoined", "all"] = "joined"
+    status: Literal["active", "expiringSoon", "upcoming"] = "active"
+    type: Literal["promotion", "voucher", "all"] = "all"
+    page_size: int = Field(default=100, ge=10, le=200)
+    max_pages: int = Field(default=5, ge=1, le=50)
+    advertiser_ids: list[int] | None = None
+    region_codes: list[str] | None = None
+    exclusive_only: bool | None = None
+    updated_since: str | None = None
+
+
+class AwinPromotionSyncResponse(ApiModel):
+    status: str
+    message: str
+    fetched_count: int
+    imported_count: int
+    total_before: int
+    total_after: int
+    skipped_count: int = 0
+    pages_checked: int = 0

@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+import html
+import re
 
 from app.models.promotion import (
     Promotion,
-    PromotionsPage,
     PromotionResponse,
     PromotionSort,
     PromotionType,
@@ -13,6 +14,84 @@ from app.repositories.promotions_repository import PromotionsRepository
 
 class PromotionNotFoundError(Exception):
     pass
+
+
+def clean_promotion_text(value: str | None) -> str:
+    """Repair narrow Awin promotion mojibake before storing or returning it.
+
+    Awin offers sometimes contain UTF-8 bytes decoded as Latin-1/Windows-1252,
+    for example "â\x82¬200 OFF" or "â¬200 OFF" instead of "€200 OFF".
+    Keep this helper local to promotions so product titles/deals are not changed.
+    """
+    if value is None:
+        return ""
+
+    text = html.unescape(str(value)).strip()
+    if not text:
+        return ""
+
+    def replace_known_symbols(raw: str) -> str:
+        replacements = {
+            # Euro sign variants. The first one includes the hidden U+0082
+            # control character often dropped by terminals/log renderers.
+            chr(0x00E2) + chr(0x0082) + chr(0x00AC): "€",
+            chr(0x00E2) + chr(0x201A) + chr(0x00AC): "€",
+            chr(0x00E2) + chr(0x00AC): "€",
+            "â‚¬": "€",
+            "â¬": "€",
+            "Â£": "£",
+            chr(0x00C2) + "£": "£",
+            "Â$": "$",
+            chr(0x00C2) + "$": "$",
+            "Â ": " ",
+            "Â\xa0": " ",
+            chr(0x00C2) + chr(0x00A0): " ",
+            "ï¼š": ":",
+            "ï¼": ":",
+            "：": ":",
+            "\ufeff": "",
+        }
+        for bad, good in replacements.items():
+            raw = raw.replace(bad, good)
+        return raw
+
+    text = replace_known_symbols(text)
+
+    # Try a narrow mojibake repair loop for common Polish / punctuation cases.
+    mojibake_markers = ("Ã", "Å", "â", "Â", "ï¼")
+    for _ in range(2):
+        if not any(marker in text for marker in mojibake_markers):
+            break
+        repaired = None
+        for encoding in ("latin1", "cp1252"):
+            try:
+                candidate = text.encode(encoding).decode("utf-8")
+            except UnicodeError:
+                continue
+            if candidate and candidate != text:
+                repaired = candidate
+                break
+        if repaired is None:
+            break
+        text = replace_known_symbols(repaired)
+
+    text = replace_known_symbols(text)
+
+    replacements = {
+        # AliExpress PL labels, normalized to English for current app UI.
+        "Letnia Wyprzedaż": "Summer Sale",
+        "Letnia WyprzedaÅ": "Summer Sale",
+        "Letnia WyprzedaÅ¼": "Summer Sale",
+        "Wartość": "Value",
+        "WartoÅ": "Value",
+        "WartoÅ ": "Value ",
+        "Min. Zamówienie": "Min. order",
+        "Min. ZamÃ³wienie": "Min. order",
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+
+    return re.sub(r"[ \t]+", " ", text).strip()
 
 
 class PromotionsService:
@@ -45,6 +124,9 @@ class PromotionsService:
             raise PromotionNotFoundError(promotion_id)
         return self._to_response(promotion)
 
+    def count_promotions(self) -> int:
+        return self._repository.count_promotions()
+
     def upsert_promotions(self, payloads: list[PromotionUpsertRequest]) -> int:
         promotions = [self._request_to_promotion(payload) for payload in payloads]
         return self._repository.upsert_many(promotions)
@@ -57,11 +139,11 @@ class PromotionsService:
         return Promotion(
             id=payload.id,
             type=payload.type,
-            title=payload.title,
-            description=payload.description,
-            store=payload.store,
-            discount_text=payload.discount_text,
-            code=payload.code,
+            title=clean_promotion_text(payload.title),
+            description=clean_promotion_text(payload.description),
+            store=clean_promotion_text(payload.store),
+            discount_text=clean_promotion_text(payload.discount_text),
+            code=clean_promotion_text(payload.code) if payload.code else None,
             landing_url=payload.landing_url,
             affiliate_url=payload.affiliate_url,
             image_url=payload.image_url,
@@ -74,14 +156,16 @@ class PromotionsService:
         )
 
     def _to_response(self, promotion: Promotion) -> PromotionResponse:
+        # Also clean on output so existing local DB rows created before this fix
+        # do not leak mojibake into the Flutter UI.
         return PromotionResponse(
             id=promotion.id,
             type=promotion.type,
-            title=promotion.title,
-            description=promotion.description,
-            store=promotion.store,
-            discount_text=promotion.discount_text,
-            code=promotion.code,
+            title=clean_promotion_text(promotion.title),
+            description=clean_promotion_text(promotion.description),
+            store=clean_promotion_text(promotion.store),
+            discount_text=clean_promotion_text(promotion.discount_text),
+            code=clean_promotion_text(promotion.code) if promotion.code else None,
             landing_url=promotion.landing_url,
             affiliate_url=promotion.affiliate_url,
             image_url=promotion.image_url,

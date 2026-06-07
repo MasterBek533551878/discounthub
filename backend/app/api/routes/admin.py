@@ -16,14 +16,40 @@ from app.models.deal import (
     DealSort,
     DealUpsertRequest,
 )
+from app.models.promotion import AwinPromotionSyncRequest, AwinPromotionSyncResponse
+from app.services.awin_offers_service import awin_offers_service
 from app.services.deals_service import DealNotFoundError, deals_service
 from app.services.feed_import_service import feed_import_service
+from app.services.promotions_service import promotions_service
 
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
     dependencies=[Depends(require_admin_token)],
 )
+
+
+@router.post(
+    "/promotions/awin/sync",
+    response_model=AwinPromotionSyncResponse,
+    response_model_by_alias=True,
+)
+def admin_sync_awin_promotions(payload: AwinPromotionSyncRequest) -> AwinPromotionSyncResponse:
+    total_before = promotions_service.count_promotions()
+    promotions, skipped_count, pages_checked = awin_offers_service.fetch_promotions(payload)
+    imported_count = promotions_service.upsert_promotions(promotions)
+    total_after = promotions_service.count_promotions()
+
+    return AwinPromotionSyncResponse(
+        status="ok",
+        message=f"Imported/updated {imported_count} Awin promotion(s).",
+        fetched_count=len(promotions) + skipped_count,
+        imported_count=imported_count,
+        total_before=total_before,
+        total_after=total_after,
+        skipped_count=skipped_count,
+        pages_checked=pages_checked,
+    )
 
 
 @router.get("/deals", response_model=DealsPage, response_model_by_alias=True)
