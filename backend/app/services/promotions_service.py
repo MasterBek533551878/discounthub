@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 import html
 import re
 
@@ -16,13 +16,84 @@ class PromotionNotFoundError(Exception):
     pass
 
 
-def clean_promotion_text(value: str | None) -> str:
-    """Repair narrow Awin promotion mojibake before storing or returning it.
+PROVIDER_STORE_NAMES: dict[str, str] = {
+    "awin_offers_17940": "Alibaba US",
+    "awin_offers_17942": "Alibaba UK",
+    "awin_offers_17943": "Alibaba EU",
+    "awin_offers_123746": "Navimow FR",
+    "awin_offers_3134": "Startrite",
+}
 
-    Awin offers sometimes contain UTF-8 bytes decoded as Latin-1/Windows-1252,
-    for example "â\x82¬200 OFF" or "â¬200 OFF" instead of "€200 OFF".
-    Keep this helper local to promotions so product titles/deals are not changed.
-    """
+
+def provider_store_name(provider_id: str | None) -> str | None:
+    if not provider_id:
+        return None
+    return PROVIDER_STORE_NAMES.get(str(provider_id).strip())
+
+
+def _replace_known_mojibake(text: str) -> str:
+    euro = chr(0x20AC)
+    pound = chr(0x00A3)
+    bullet = chr(0x2022)
+    apostrophe = "'"
+    dash = chr(0x2013)
+    long_dash = chr(0x2014)
+
+    # Build mojibake tokens with chr(...) so Windows PowerShell cannot corrupt
+    # this source file during copy/paste.
+    c2 = chr(0x00C2)
+    e2 = chr(0x00E2)
+    ac = chr(0x00AC)
+    lsq = chr(0x2018)
+    rsq = chr(0x2019)
+    ldq = chr(0x201C)
+    rdq = chr(0x201D)
+
+    replacements = {
+        e2 + chr(0x0082) + ac: euro,
+        e2 + chr(0x201A) + ac: euro,
+        e2 + ac: euro,
+        c2 + chr(0x00A3): pound,
+        c2 + "$": "$",
+        c2 + " ": " ",
+        c2 + chr(0x00A0): " ",
+        e2 + chr(0x0080) + chr(0x0099): apostrophe,
+        e2 + chr(0x20AC) + chr(0x2122): apostrophe,
+        e2 + rsq: apostrophe,
+        e2 + chr(0x0080) + chr(0x0098): apostrophe,
+        e2 + chr(0x20AC) + chr(0x02DC): apostrophe,
+        e2 + lsq: apostrophe,
+        e2 + chr(0x0080) + chr(0x009C): '"',
+        e2 + chr(0x20AC) + chr(0x0153): '"',
+        e2 + ldq: '"',
+        e2 + chr(0x0080) + chr(0x009D): '"',
+        e2 + chr(0x20AC) + chr(0x009D): '"',
+        e2 + rdq: '"',
+        e2 + chr(0x0080) + chr(0x0093): dash,
+        e2 + chr(0x20AC) + chr(0x201C): dash,
+        e2 + chr(0x0080) + chr(0x0094): long_dash,
+        e2 + chr(0x20AC) + chr(0x201D): long_dash,
+        e2 + chr(0x0080) + chr(0x00A2): bullet,
+        e2 + chr(0x20AC) + chr(0x00A2): bullet,
+        e2 + chr(0x00A2): bullet,
+        chr(0x00EF) + chr(0x00BB) + chr(0x00BF): "",
+        chr(0xFEFF): "",
+    }
+
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+
+    # Extra real-world Awin cases from production are built from chr(...)
+    # tokens above to keep this source safe across Windows terminals.
+    text = text.replace(e2 + ac, euro)
+    text = text.replace(c2 + chr(0x00A3), pound)
+    text = re.sub(e2 + r"(?=s\b)", apostrophe, text)
+    text = re.sub(r"(?m)^\s*" + e2 + r"\s+", bullet + " ", text)
+
+    return text
+
+
+def clean_promotion_text(value: str | None) -> str:
     if value is None:
         return ""
 
@@ -30,68 +101,55 @@ def clean_promotion_text(value: str | None) -> str:
     if not text:
         return ""
 
-    def replace_known_symbols(raw: str) -> str:
-        replacements = {
-            # Euro sign variants. The first one includes the hidden U+0082
-            # control character often dropped by terminals/log renderers.
-            chr(0x00E2) + chr(0x0082) + chr(0x00AC): "€",
-            chr(0x00E2) + chr(0x201A) + chr(0x00AC): "€",
-            chr(0x00E2) + chr(0x00AC): "€",
-            "â‚¬": "€",
-            "â¬": "€",
-            "Â£": "£",
-            chr(0x00C2) + "£": "£",
-            "Â$": "$",
-            chr(0x00C2) + "$": "$",
-            "Â ": " ",
-            "Â\xa0": " ",
-            chr(0x00C2) + chr(0x00A0): " ",
-            "ï¼š": ":",
-            "ï¼": ":",
-            "：": ":",
-            "\ufeff": "",
-        }
-        for bad, good in replacements.items():
-            raw = raw.replace(bad, good)
-        return raw
+    text = _replace_known_mojibake(text)
 
-    text = replace_known_symbols(text)
-
-    # Try a narrow mojibake repair loop for common Polish / punctuation cases.
-    mojibake_markers = ("Ã", "Å", "â", "Â", "ï¼")
+    # Try generic repair for common UTF-8-as-Latin1/CP1252 mojibake.
     for _ in range(2):
-        if not any(marker in text for marker in mojibake_markers):
-            break
-        repaired = None
+        before_score = len(re.findall(r"[\u00c2\u00c3\u00e2\ufffd]", text))
+        best = text
+
         for encoding in ("latin1", "cp1252"):
             try:
                 candidate = text.encode(encoding).decode("utf-8")
             except UnicodeError:
                 continue
-            if candidate and candidate != text:
-                repaired = candidate
-                break
-        if repaired is None:
+
+            candidate = _replace_known_mojibake(candidate)
+            candidate_score = len(re.findall(r"[\u00c2\u00c3\u00e2\ufffd]", candidate))
+
+            if candidate_score < before_score:
+                best = candidate
+                before_score = candidate_score
+
+        if best == text:
             break
-        text = replace_known_symbols(repaired)
 
-    text = replace_known_symbols(text)
+        text = best
 
-    replacements = {
-        # AliExpress PL labels, normalized to English for current app UI.
-        "Letnia Wyprzedaż": "Summer Sale",
-        "Letnia WyprzedaÅ": "Summer Sale",
-        "Letnia WyprzedaÅ¼": "Summer Sale",
-        "Wartość": "Value",
-        "WartoÅ": "Value",
-        "WartoÅ ": "Value ",
-        "Min. Zamówienie": "Min. order",
-        "Min. ZamÃ³wienie": "Min. order",
-    }
-    for bad, good in replacements.items():
-        text = text.replace(bad, good)
+    text = _replace_known_mojibake(text)
 
-    return re.sub(r"[ \t]+", " ", text).strip()
+    # Keep this in English for app display.
+    text = text.replace("Letnia Wyprzeda\u017c", "Summer Sale")
+    text = text.replace("Letnia Wyprzeda\u00c5\u00bc", "Summer Sale")
+    text = text.replace("Warto\u015b\u0107", "Value")
+    text = text.replace("Warto\u00c5\u009b\u00c4\u0087", "Value")
+    text = text.replace("Min. Zam\u00f3wienie", "Min. order")
+    text = text.replace("Min. Zam\u00c3\u00b3wienie", "Min. order")
+
+    text = re.sub(r"(?m)^-\s*Method", "\u2022 Method", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text.strip()
+
+
+def clean_promotion_store(store: str | None, provider_id: str | None) -> str:
+    mapped = provider_store_name(provider_id)
+    if mapped:
+        return mapped
+
+    cleaned = clean_promotion_text(store)
+    return cleaned or "Unknown store"
 
 
 class PromotionsService:
@@ -141,7 +199,7 @@ class PromotionsService:
             type=payload.type,
             title=clean_promotion_text(payload.title),
             description=clean_promotion_text(payload.description),
-            store=clean_promotion_text(payload.store),
+            store=clean_promotion_store(payload.store, payload.provider_id),
             discount_text=clean_promotion_text(payload.discount_text),
             code=clean_promotion_text(payload.code) if payload.code else None,
             landing_url=payload.landing_url,
@@ -156,14 +214,12 @@ class PromotionsService:
         )
 
     def _to_response(self, promotion: Promotion) -> PromotionResponse:
-        # Also clean on output so existing local DB rows created before this fix
-        # do not leak mojibake into the Flutter UI.
         return PromotionResponse(
             id=promotion.id,
             type=promotion.type,
             title=clean_promotion_text(promotion.title),
             description=clean_promotion_text(promotion.description),
-            store=clean_promotion_text(promotion.store),
+            store=clean_promotion_store(promotion.store, promotion.provider_id),
             discount_text=clean_promotion_text(promotion.discount_text),
             code=clean_promotion_text(promotion.code) if promotion.code else None,
             landing_url=promotion.landing_url,
