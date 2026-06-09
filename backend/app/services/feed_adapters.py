@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import re
 import urllib.parse
 from datetime import datetime, timezone
@@ -158,15 +159,17 @@ class FeedAdapterService:
         }
 
     def _normalize_awin(self, item: dict[str, Any]) -> dict[str, Any]:
-        title = self._pick_string(
-            item,
-            "product_name",
-            "productName",
-            "name",
-            "title",
-            "aw_product_name",
-            "productname",
-        ) or "Untitled Awin product"
+        title = self._clean_text(
+            self._pick_string(
+                item,
+                "product_name",
+                "productName",
+                "name",
+                "title",
+                "aw_product_name",
+                "productname",
+            ) or "Untitled Awin product"
+        )
         deep_link = self._pick_string(
             item,
             "aw_deep_link",
@@ -213,33 +216,38 @@ class FeedAdapterService:
             "picture",
             "image",
         ) or "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200"
-        platform = self._pick_string(
-            item,
-            "_awin_advertiser_name",
-            "advertiser_name",
-            "merchant_name",
-            "programme_name",
-            "program_name",
-            "shop",
-            "store",
-        ) or "Awin Merchant"
-        category = self._pick_string(
+        platform = self._clean_text(
+            self._pick_string(
+                item,
+                "_awin_advertiser_name",
+                "advertiser_name",
+                "merchant_name",
+                "programme_name",
+                "program_name",
+                "shop",
+                "store",
+            ) or "Awin Merchant"
+        )
+        raw_category = self._pick_string(
             item,
             "category_name",
             "merchant_category",
             "product_category",
             "category",
             "product_type",
-        ) or self._infer_awin_category(title=title, platform=platform)
-        brand = self._pick_string(item, "brand_name", "brand", "manufacturer")
-        description = self._pick_string(
-            item,
-            "description",
-            "product_description",
-            "product_short_description",
-            "short_description",
-            "merchant_product_description",
-        ) or title
+        )
+        category = self._clean_text(raw_category) if raw_category else self._infer_awin_category(title=title, platform=platform)
+        brand = self._clean_text(self._pick_string(item, "brand_name", "brand", "manufacturer") or "")
+        description = self._clean_text(
+            self._pick_string(
+                item,
+                "description",
+                "product_description",
+                "product_short_description",
+                "short_description",
+                "merchant_product_description",
+            ) or title
+        )
         if brand and brand.lower() not in description.lower():
             description = f"{brand} · {description}"
 
@@ -857,6 +865,103 @@ class FeedAdapterService:
             if isinstance(value, str):
                 return [part.upper().strip() for part in re.split(r"[,;|]", value) if part.strip()]
         return []
+
+    def _replace_known_mojibake(self, text: str) -> str:
+        euro = chr(0x20AC)
+        pound = chr(0x00A3)
+        bullet = chr(0x2022)
+        apostrophe = "'"
+        dash = chr(0x2013)
+        long_dash = chr(0x2014)
+
+        c2 = chr(0x00C2)
+        e2 = chr(0x00E2)
+        ac = chr(0x00AC)
+        lsq = chr(0x2018)
+        rsq = chr(0x2019)
+        ldq = chr(0x201C)
+        rdq = chr(0x201D)
+
+        replacements = {
+            e2 + chr(0x0082) + ac: euro,
+            e2 + chr(0x201A) + ac: euro,
+            e2 + ac: euro,
+            c2 + chr(0x00A3): pound,
+            c2 + "$": "$",
+            c2 + " ": " ",
+            c2 + chr(0x00A0): " ",
+            e2 + chr(0x0080) + chr(0x0099): apostrophe,
+            e2 + chr(0x20AC) + chr(0x2122): apostrophe,
+            e2 + rsq: apostrophe,
+            e2 + chr(0x0080) + chr(0x0098): apostrophe,
+            e2 + chr(0x20AC) + chr(0x02DC): apostrophe,
+            e2 + lsq: apostrophe,
+            e2 + chr(0x0080) + chr(0x009C): '"',
+            e2 + chr(0x20AC) + chr(0x0153): '"',
+            e2 + ldq: '"',
+            e2 + chr(0x0080) + chr(0x009D): '"',
+            e2 + chr(0x20AC) + chr(0x009D): '"',
+            e2 + rdq: '"',
+            e2 + chr(0x0080) + chr(0x0093): dash,
+            e2 + chr(0x20AC) + chr(0x201C): dash,
+            e2 + chr(0x0080) + chr(0x0094): long_dash,
+            e2 + chr(0x20AC) + chr(0x201D): long_dash,
+            e2 + chr(0x0080) + chr(0x00A2): bullet,
+            e2 + chr(0x20AC) + chr(0x00A2): bullet,
+            e2 + chr(0x00A2): bullet,
+            chr(0x00EF) + chr(0x00BB) + chr(0x00BF): "",
+            chr(0xFEFF): "",
+        }
+        for bad, good in replacements.items():
+            text = text.replace(bad, good)
+
+        text = text.replace(e2 + ac, euro)
+        text = text.replace(c2 + chr(0x00A3), pound)
+        text = re.sub(e2 + r"(?=s\b)", apostrophe, text)
+        text = re.sub(r"(?m)^\s*" + e2 + r"\s+", bullet + " ", text)
+        return text
+
+    def _clean_text(self, value: str | None) -> str:
+        if value is None:
+            return ""
+        text = html.unescape(str(value)).strip()
+        if not text:
+            return ""
+
+        text = self._replace_known_mojibake(text)
+        for _ in range(2):
+            before_score = len(re.findall(r"[\u00c2\u00c3\u00e2\ufffd]", text))
+            best = text
+            for encoding in ("latin1", "cp1252"):
+                try:
+                    candidate = text.encode(encoding).decode("utf-8")
+                except UnicodeError:
+                    continue
+                candidate = self._replace_known_mojibake(candidate)
+                candidate_score = len(re.findall(r"[\u00c2\u00c3\u00e2\ufffd]", candidate))
+                if candidate_score < before_score:
+                    best = candidate
+                    before_score = candidate_score
+            if best == text:
+                break
+            text = best
+
+        text = self._replace_known_mojibake(text)
+        replacements = {
+            "â‚¬": "€",
+            "â¬": "€",
+            "Â£": "£",
+            "Â$": "$",
+            "ï¼š": ":",
+            "ï¼": ":",
+            "：": ":",
+            " ": " ",
+        }
+        for bad, good in replacements.items():
+            text = text.replace(bad, good)
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        return text.strip()
 
     def _safe_key(self, value: str) -> str:
         key = re.sub(r"[^a-zA-Z0-9]+", "_", str(value or "").strip().lower()).strip("_")

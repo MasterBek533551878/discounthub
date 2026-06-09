@@ -82,6 +82,23 @@ class AwinFeedListService:
     _REGION_KEYS = ("programme_region", "program_region", "region", "country", "market")
     _LANGUAGE_KEYS = ("feed_language", "language", "lang")
 
+    # Some advertiser feeds can contain recently deleted/unavailable Shopify
+    # variants even though the Awin feed itself is still downloadable. Keep this
+    # blocklist narrow and explicit so one broken advertiser does not affect
+    # other Awin stores. IDs below were manually verified as TTfone 404s on
+    # production on 2026-06-09.
+    _BLOCKED_AWIN_PRODUCTS: set[tuple[str, str]] = {
+        ("28737", "42338245511"),
+        ("28737", "42338245487"),
+        ("28737", "42338245486"),
+        ("28737", "42338245485"),
+        ("28737", "42338245484"),
+        ("28737", "42338245483"),
+        ("28737", "42338245482"),
+        ("28737", "44290852484"),
+        ("28737", "44237432484"),
+    }
+
     def search_from_provider_url(self, provider_url: str, *, timeout_seconds: int = 20) -> list[dict[str, Any]]:
         options = self._parse_options(provider_url)
         feed_list_url = self._resolve_feed_list_url(provider_url)
@@ -120,6 +137,8 @@ class AwinFeedListService:
                 if not product_items:
                     failures.append(self._format_filter_stats(feed_row, stats))
                     continue
+                kept_products: list[dict[str, Any]] = []
+                blocked_count = 0
                 for product in product_items:
                     product.setdefault("_awin_feed_index", index)
                     product.setdefault("_awin_feed_name", feed_row.feed_name)
@@ -127,7 +146,14 @@ class AwinFeedListService:
                     product.setdefault("_awin_feed_language", feed_row.language)
                     product.setdefault("_awin_advertiser_id", feed_row.advertiser_id)
                     product.setdefault("_awin_advertiser_name", feed_row.advertiser_name)
-                all_items.extend(product_items)
+                    if self._is_blocked_awin_product(product):
+                        blocked_count += 1
+                        continue
+                    kept_products.append(product)
+
+                if blocked_count:
+                    failures.append(f"{feed_row.display_name}: blocked_known_bad_products={blocked_count}")
+                all_items.extend(kept_products)
             except HTTPException as exc:
                 failures.append(f"{feed_row.display_name}: {exc.detail}")
             except Exception as exc:  # pragma: no cover - defensive safety around external feeds.
@@ -272,6 +298,13 @@ class AwinFeedListService:
             if value:
                 resolved = resolved.replace(placeholder, urllib.parse.quote(value))
         return resolved
+
+    def _is_blocked_awin_product(self, item: dict[str, Any]) -> bool:
+        advertiser_id = self._pick_string(item, "_awin_advertiser_id", "advertiser_id", "merchant_id", "programme_id", "program_id")
+        product_id = self._pick_string(item, "aw_product_id", "merchant_product_id", "product_id", "sku", "id")
+        if not advertiser_id or not product_id:
+            return False
+        return (advertiser_id.strip(), product_id.strip()) in self._BLOCKED_AWIN_PRODUCTS
 
     def _filter_product_items(self, items: list[dict[str, Any]], *, min_discount_percent: int) -> list[dict[str, Any]]:
         filtered, _stats = self._filter_product_items_with_stats(items, min_discount_percent=min_discount_percent)
