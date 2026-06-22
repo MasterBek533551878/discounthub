@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 
@@ -122,9 +122,22 @@ class FeedProvidersService:
                 import_request.items,
                 replace=import_request.replace,
             )
+            stale_deleted_count = 0
+            if not import_request.replace:
+                # Incremental affiliate feeds do not always send tombstones for
+                # products that disappeared from the merchant catalogue. After a
+                # successful sync, remove very old rows for the same provider so
+                # dead products cannot accumulate forever. Public visibility is
+                # still controlled separately by the freshness SQL window.
+                stale_deleted_count = deals_service.delete_stale_provider_deals(
+                    provider_id=provider.id,
+                    older_than=synced_at - timedelta(days=10),
+                )
             deal_count = deals_service.count_deals()
             finished_at = datetime.now(timezone.utc)
             message = f"Successfully synced {imported_count} deal(s)."
+            if stale_deleted_count:
+                message += f" Removed {stale_deleted_count} stale provider deal(s)."
             self._repository.update_sync_result(
                 provider.id,
                 status="ok",

@@ -83,6 +83,15 @@ class PromotionUpsertRequest(ApiModel):
     featured: bool = False
     updated_at: datetime | None = None
 
+
+class PromotionCleanupResponse(ApiModel):
+    status: str
+    message: str
+    checked_count: int = 0
+    deleted_count: int = 0
+    remaining_count: int = 0
+    deleted_reasons: dict[str, int] = Field(default_factory=dict)
+
 class AwinPromotionSyncRequest(ApiModel):
     membership: Literal["joined", "notJoined", "all"] = "joined"
     status: Literal["active", "expiringSoon", "upcoming"] = "active"
@@ -104,3 +113,5 @@ class AwinPromotionSyncResponse(ApiModel):
     total_after: int
     skipped_count: int = 0
     pages_checked: int = 0
+    cleanup_deleted_count: int = 0
+    cleanup_deleted_reasons: dict[str, int] = Field(default_factory=dict)

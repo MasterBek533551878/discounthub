@@ -42,6 +42,35 @@ class PromotionsApiClient {
     return PromotionApiPage.fromJson(json);
   }
 
+  Future<List<String>> getPromotionStores({
+    String? query,
+    String? type,
+  }) async {
+    final params = <String, String>{
+      if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+      if (type != null && type.trim().isNotEmpty) 'type': type.trim(),
+    };
+
+    final response = await _httpClient
+        .get(_buildUri('/promotions/stores', params))
+        .timeout(timeout);
+    final json = _decodeObject(response);
+    final items = json['items'];
+    if (items is! List) return const <String>[];
+
+    final stores = <String>[];
+    for (final item in items) {
+      final value = item is Map<String, dynamic>
+          ? item['name'] ?? item['id']
+          : item;
+      final store = value?.toString().trim() ?? '';
+      if (store.isEmpty) continue;
+      final exists = stores.any((existing) => existing.toLowerCase() == store.toLowerCase());
+      if (!exists) stores.add(store);
+    }
+    return List.unmodifiable(stores);
+  }
+
   Uri clickUri(String promotionId) {
     return _buildUri('/promotions/${Uri.encodeComponent(promotionId)}/click');
   }

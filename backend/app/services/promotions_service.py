@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 import html
 import re
 
@@ -10,6 +10,7 @@ from app.models.promotion import (
     PromotionUpsertRequest,
 )
 from app.repositories.promotions_repository import PromotionsRepository
+from app.services.promotion_cleanup_service import promotion_cleanup_service
 
 
 class PromotionNotFoundError(Exception):
@@ -166,6 +167,7 @@ class PromotionsService:
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[PromotionResponse], int]:
+        promotion_cleanup_service.cleanup_if_due()
         promotions, total = self._repository.query_promotions(
             q=q,
             type=type,
@@ -177,6 +179,7 @@ class PromotionsService:
         return [self._to_response(promotion) for promotion in promotions], total
 
     def get_promotion(self, promotion_id: str) -> PromotionResponse:
+        promotion_cleanup_service.cleanup_if_due()
         promotion = self._repository.get_promotion(promotion_id)
         if promotion is None:
             raise PromotionNotFoundError(promotion_id)
@@ -184,6 +187,15 @@ class PromotionsService:
 
     def count_promotions(self) -> int:
         return self._repository.count_promotions()
+
+    def get_store_facets(
+        self,
+        *,
+        q: str | None = None,
+        type: PromotionType | None = None,
+    ) -> list[dict[str, object]]:
+        promotion_cleanup_service.cleanup_if_due()
+        return self._repository.get_store_facets(q=q, type=type)
 
     def upsert_promotions(self, payloads: list[PromotionUpsertRequest]) -> int:
         promotions = [self._request_to_promotion(payload) for payload in payloads]

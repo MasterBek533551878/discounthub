@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Toolbox token for API calls.
     awin_api_base_url: str = "https://api.awin.com"
     awin_api_access_token: str = ""
+    awin_promotions_auto_sync_enabled: bool = True
+    awin_promotions_sync_page_size: int = 100
+    awin_promotions_sync_max_pages: int = 10
 
     # Mercado Libre direct marketplace adapter. Public search endpoints may be
     # blocked or require OAuth depending on site/account/app policy. Keep these

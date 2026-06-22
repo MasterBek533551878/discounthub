@@ -236,6 +236,12 @@ class DealsService:
     def delete_deal(self, deal_id: str) -> bool:
         return self._repository.delete_deal(deal_id)
 
+    def delete_stale_provider_deals(self, *, provider_id: str, older_than: datetime) -> int:
+        return self._repository.delete_stale_provider_deals(
+            provider_id=provider_id,
+            older_than=older_than,
+        )
+
     def reset_demo_deals(self) -> int:
         self._repository.delete_all()
         self._repository.upsert_many(MOCK_DEALS)

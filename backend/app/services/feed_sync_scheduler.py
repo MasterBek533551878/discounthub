@@ -5,10 +5,23 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.core.config import get_settings
+from app.models.promotion import AwinPromotionSyncRequest
+from app.services.awin_offers_service import awin_offers_service
 from app.services.feed_providers_service import feed_providers_service
+from app.services.promotion_cleanup_service import promotion_cleanup_service
+from app.services.promotions_service import promotions_service
 
 
 class FeedSyncScheduler:
+    """Runs the production data maintenance loop.
+
+    This scheduler used to refresh only product feed providers. DiscountHub also
+    needs store-level Awin promotions and cleanup to be automatic, otherwise the
+    app can show stale coupons or miss newly joined stores until somebody runs a
+    manual script. A single run now refreshes products, refreshes Awin offers,
+    and cleans expired/low-value promotions.
+    """
+
     def __init__(self) -> None:
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
@@ -22,6 +35,10 @@ class FeedSyncScheduler:
         self._last_message: str | None = None
         self._last_imported_count = 0
         self._last_deal_count: int | None = None
+        self._last_promotion_imported_count = 0
+        self._last_promotion_cleanup_deleted_count = 0
+        self._last_promotion_count: int | None = None
+        self._last_promotion_error: str | None = None
         self._last_error: str | None = None
 
     @property
@@ -61,9 +78,11 @@ class FeedSyncScheduler:
         if self._lock.locked():
             return {
                 "status": "busy",
-                "message": "Feed sync is already running.",
+                "message": "DiscountHub data maintenance is already running.",
                 "importedCount": 0,
                 "dealCount": self._last_deal_count,
+                "promotionImportedCount": 0,
+                "promotionCount": self._last_promotion_count,
             }
 
         async with self._lock:
@@ -72,29 +91,25 @@ class FeedSyncScheduler:
             timeout = max(3, int(timeout_seconds or self._timeout_seconds))
 
             try:
-                result = await asyncio.to_thread(
-                    feed_providers_service.sync_all_enabled,
-                    timeout_seconds=timeout,
-                )
+                result = await asyncio.to_thread(self._run_maintenance_once, timeout)
                 finished_at = datetime.now(timezone.utc)
                 self._last_finished_at = finished_at
-                self._last_status = result.status
-                self._last_message = result.message
-                self._last_imported_count = result.imported_count
-                self._last_deal_count = result.deal_count
-                self._last_error = None
+                self._last_status = str(result["status"])
+                self._last_message = str(result["message"])
+                self._last_imported_count = int(result.get("importedCount") or 0)
+                self._last_deal_count = self._safe_int(result.get("dealCount"))
+                self._last_promotion_imported_count = int(result.get("promotionImportedCount") or 0)
+                self._last_promotion_cleanup_deleted_count = int(result.get("promotionCleanupDeletedCount") or 0)
+                self._last_promotion_count = self._safe_int(result.get("promotionCount"))
+                self._last_promotion_error = result.get("promotionError") if result.get("promotionError") else None
+                self._last_error = None if self._last_status != "error" else self._last_message
 
-                return {
-                    "status": result.status,
-                    "message": result.message,
-                    "importedCount": result.imported_count,
-                    "dealCount": result.deal_count,
-                    "startedAt": started_at.isoformat(),
-                    "finishedAt": finished_at.isoformat(),
-                }
+                result["startedAt"] = started_at.isoformat()
+                result["finishedAt"] = finished_at.isoformat()
+                return result
             except Exception as exc:  # pragma: no cover - defensive runtime guard
                 finished_at = datetime.now(timezone.utc)
-                message = f"Scheduled feed sync failed: {exc}"
+                message = f"Scheduled data maintenance failed: {self._exception_message(exc)}"
                 self._last_finished_at = finished_at
                 self._last_status = "error"
                 self._last_message = message
@@ -106,9 +121,78 @@ class FeedSyncScheduler:
                     "message": message,
                     "importedCount": 0,
                     "dealCount": self._last_deal_count,
+                    "promotionImportedCount": 0,
+                    "promotionCleanupDeletedCount": 0,
+                    "promotionCount": self._last_promotion_count,
                     "startedAt": started_at.isoformat(),
                     "finishedAt": finished_at.isoformat(),
                 }
+
+    def _run_maintenance_once(self, timeout_seconds: int) -> dict[str, Any]:
+        settings = get_settings()
+        product_result = feed_providers_service.sync_all_enabled(timeout_seconds=timeout_seconds)
+
+        promotion_status = "skipped"
+        promotion_error: str | None = None
+        promotion_imported_count = 0
+        promotion_fetched_count = 0
+        promotion_skipped_count = 0
+        promotion_pages_checked = 0
+
+        if settings.awin_promotions_auto_sync_enabled:
+            try:
+                request = AwinPromotionSyncRequest(
+                    page_size=settings.awin_promotions_sync_page_size,
+                    max_pages=settings.awin_promotions_sync_max_pages,
+                )
+                promotions, skipped_count, pages_checked = awin_offers_service.fetch_promotions(request)
+                promotion_imported_count = promotions_service.upsert_promotions(promotions)
+                promotion_fetched_count = len(promotions) + skipped_count
+                promotion_skipped_count = skipped_count
+                promotion_pages_checked = pages_checked
+                promotion_status = "ok"
+            except Exception as exc:  # Keep products alive even if Awin offers fails.
+                promotion_status = "error"
+                promotion_error = self._exception_message(exc)
+
+        cleanup_result = promotion_cleanup_service.cleanup_promotions()
+        promotion_count = cleanup_result.remaining_count
+
+        status = "ok"
+        if product_result.status != "ok" or promotion_status == "error" or cleanup_result.error:
+            status = "partial"
+        if product_result.status == "error":
+            status = "error"
+
+        message_parts = [product_result.message]
+        if promotion_status == "ok":
+            message_parts.append(
+                f"Awin promotions imported/updated {promotion_imported_count}; "
+                f"cleaned {cleanup_result.deleted_count}."
+            )
+        elif promotion_status == "skipped":
+            message_parts.append(f"Awin promotion auto-sync disabled; cleaned {cleanup_result.deleted_count}.")
+        else:
+            message_parts.append(
+                f"Awin promotion sync failed: {promotion_error}. "
+                f"Cleanup still removed {cleanup_result.deleted_count}."
+            )
+
+        return {
+            "status": status,
+            "message": " ".join(part for part in message_parts if part),
+            "importedCount": product_result.imported_count,
+            "dealCount": product_result.deal_count,
+            "promotionStatus": promotion_status,
+            "promotionImportedCount": promotion_imported_count,
+            "promotionFetchedCount": promotion_fetched_count,
+            "promotionSkippedCount": promotion_skipped_count,
+            "promotionPagesChecked": promotion_pages_checked,
+            "promotionCleanupDeletedCount": cleanup_result.deleted_count,
+            "promotionCleanupDeletedReasons": cleanup_result.deleted_reasons,
+            "promotionCount": promotion_count,
+            "promotionError": promotion_error,
+        }
 
     def status(self) -> dict[str, Any]:
         return {
@@ -123,6 +207,10 @@ class FeedSyncScheduler:
             "lastMessage": self._last_message,
             "lastImportedCount": self._last_imported_count,
             "lastDealCount": self._last_deal_count,
+            "lastPromotionImportedCount": self._last_promotion_imported_count,
+            "lastPromotionCleanupDeletedCount": self._last_promotion_cleanup_deleted_count,
+            "lastPromotionCount": self._last_promotion_count,
+            "lastPromotionError": self._last_promotion_error,
             "lastError": self._last_error,
         }
 
@@ -133,6 +221,22 @@ class FeedSyncScheduler:
         while True:
             await asyncio.sleep(self._interval_seconds)
             await self.run_once()
+
+    @staticmethod
+    def _exception_message(exc: Exception) -> str:
+        detail = getattr(exc, "detail", None)
+        if detail:
+            return str(detail)
+        return str(exc) or exc.__class__.__name__
+
+    @staticmethod
+    def _safe_int(value: object) -> int | None:
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
 
 feed_sync_scheduler = FeedSyncScheduler()

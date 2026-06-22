@@ -63,6 +63,37 @@ class PromotionsRepository:
             return None
         return self._row_to_promotion(row)
 
+    def get_store_facets(
+        self,
+        *,
+        q: str | None = None,
+        type: PromotionType | None = None,
+    ) -> list[dict[str, object]]:
+        where_sql, params = self._build_filter_sql(q=q, type=type, store=None)
+
+        with get_connection() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT store, COUNT(*) AS count
+                FROM promotions
+                {where_sql}
+                GROUP BY store
+                HAVING TRIM(COALESCE(store, '')) <> ''
+                ORDER BY count DESC, LOWER(store) ASC
+                LIMIT 300
+                """,
+                params,
+            ).fetchall()
+
+        return [
+            {
+                "id": str(row["store"]),
+                "name": str(row["store"]),
+                "count": int(row["count"]),
+            }
+            for row in rows
+        ]
+
     def upsert_many(self, promotions: list[Promotion]) -> int:
         if not promotions:
             return 0

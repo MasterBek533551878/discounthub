@@ -16,11 +16,16 @@ from app.models.deal import (
     DealSort,
     DealUpsertRequest,
 )
-from app.models.promotion import AwinPromotionSyncRequest, AwinPromotionSyncResponse
+from app.models.promotion import (
+    AwinPromotionSyncRequest,
+    AwinPromotionSyncResponse,
+    PromotionCleanupResponse,
+)
 from app.services.awin_offers_service import awin_offers_service
 from app.services.deals_service import DealNotFoundError, deals_service
 from app.services.feed_import_service import feed_import_service
 from app.services.promotions_service import promotions_service
+from app.services.promotion_cleanup_service import promotion_cleanup_service
 
 router = APIRouter(
     prefix="/admin",
@@ -38,17 +43,40 @@ def admin_sync_awin_promotions(payload: AwinPromotionSyncRequest) -> AwinPromoti
     total_before = promotions_service.count_promotions()
     promotions, skipped_count, pages_checked = awin_offers_service.fetch_promotions(payload)
     imported_count = promotions_service.upsert_promotions(promotions)
-    total_after = promotions_service.count_promotions()
+    cleanup_result = promotion_cleanup_service.cleanup_promotions()
+    total_after = cleanup_result.remaining_count
 
     return AwinPromotionSyncResponse(
         status="ok",
-        message=f"Imported/updated {imported_count} Awin promotion(s).",
+        message=(
+            f"Imported/updated {imported_count} Awin promotion(s). "
+            f"Cleaned {cleanup_result.deleted_count} expired/low-value promotion(s)."
+        ),
         fetched_count=len(promotions) + skipped_count,
         imported_count=imported_count,
         total_before=total_before,
         total_after=total_after,
         skipped_count=skipped_count,
         pages_checked=pages_checked,
+        cleanup_deleted_count=cleanup_result.deleted_count,
+        cleanup_deleted_reasons=cleanup_result.deleted_reasons,
+    )
+
+
+@router.post(
+    "/promotions/cleanup",
+    response_model=PromotionCleanupResponse,
+    response_model_by_alias=True,
+)
+def admin_cleanup_promotions() -> PromotionCleanupResponse:
+    result = promotion_cleanup_service.cleanup_promotions()
+    return PromotionCleanupResponse(
+        status="ok",
+        message=f"Cleaned {result.deleted_count} expired/low-value promotion(s).",
+        checked_count=result.checked_count,
+        deleted_count=result.deleted_count,
+        remaining_count=result.remaining_count,
+        deleted_reasons=result.deleted_reasons,
     )
 
 

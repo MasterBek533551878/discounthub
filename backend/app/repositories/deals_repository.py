@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable
 
 from app.db.database import get_connection
@@ -39,8 +39,16 @@ SQL_REAL_DISCOUNT_ONLY = "(old_price > current_price AND discount_percent >= 1)"
 SQL_PUBLIC_FRESH_DEAL_ONLY = (
     "("
     "updated_at IS NOT NULL AND ("
+    # AliExpress catalogue rows expire very quickly in real life. Keep them
+    # stricter than other affiliate feeds so deleted/ended products disappear
+    # from the public app before users click into unavailable item pages.
     "("
     "monetization_mode = 'affiliate' "
+    "AND (public_platform = 'AliExpress' OR LOWER(platform) LIKE 'aliexpress%') "
+    "AND datetime(updated_at) >= datetime('now', '-48 hours')"
+    ") OR ("
+    "monetization_mode = 'affiliate' "
+    "AND NOT (public_platform = 'AliExpress' OR LOWER(platform) LIKE 'aliexpress%') "
     "AND datetime(updated_at) >= datetime('now', '-7 days')"
     ") OR ("
     "COALESCE(monetization_mode, 'direct') != 'affiliate' "
@@ -49,6 +57,7 @@ SQL_PUBLIC_FRESH_DEAL_ONLY = (
     ")"
     ")"
 )
+SQL_NOT_EXPIRED_DEAL_ONLY = "(expires_at IS NULL OR datetime(expires_at) >= datetime('now'))"
 SQL_DEDUPE_KEY = """
 LOWER(TRIM(COALESCE(platform, ''))) || '|' ||
 LOWER(TRIM(COALESCE(title, ''))) || '|' ||
@@ -311,7 +320,7 @@ class DealsRepository:
     def get_categories(self) -> list[str]:
         with get_connection() as connection:
             rows = connection.execute(
-                f"SELECT DISTINCT category FROM deals WHERE TRIM(category) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY} ORDER BY category ASC"
+                f"SELECT DISTINCT category FROM deals WHERE TRIM(category) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_NOT_EXPIRED_DEAL_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY} ORDER BY category ASC"
             ).fetchall()
         return [str(row["category"]) for row in rows]
 
@@ -321,7 +330,7 @@ class DealsRepository:
                 f"""
                 SELECT public_platform AS platform, COUNT(*) AS count
                 FROM deals
-                WHERE TRIM(public_platform) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY}
+                WHERE TRIM(public_platform) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_NOT_EXPIRED_DEAL_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY}
                 GROUP BY public_platform
                 ORDER BY count DESC, platform ASC
                 """
@@ -395,6 +404,30 @@ class DealsRepository:
             cursor = connection.execute("DELETE FROM deals WHERE id = ?", (deal_id,))
             connection.commit()
         return cursor.rowcount > 0
+
+    def delete_stale_provider_deals(self, *, provider_id: str, older_than: datetime) -> int:
+        """Delete provider rows that were not refreshed by recent successful syncs.
+
+        Feed providers are incremental by design, but affiliate catalogues such as
+        AliExpress can remove products without sending an explicit tombstone. This
+        cleanup prevents the database from accumulating product cards that have
+        disappeared from the source feed.
+        """
+        provider = str(provider_id or "").strip()
+        if not provider:
+            return 0
+
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM deals
+                WHERE provider_id = ?
+                  AND datetime(updated_at) < datetime(?)
+                """,
+                (provider, older_than.astimezone(timezone.utc).isoformat()),
+            )
+            connection.commit()
+        return int(cursor.rowcount or 0)
 
     def delete_all(self) -> int:
         with get_connection() as connection:
@@ -484,7 +517,7 @@ class DealsRepository:
         verified: bool | None = None,
         monetization_mode: DealMonetizationMode | None = None,
     ) -> tuple[str, tuple[object, ...]]:
-        clauses: list[str] = [SQL_REAL_DISCOUNT_ONLY]
+        clauses: list[str] = [SQL_REAL_DISCOUNT_ONLY, SQL_NOT_EXPIRED_DEAL_ONLY]
         params: list[object] = []
 
         for keyword in BAD_DEAL_KEYWORDS:

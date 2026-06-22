@@ -175,6 +175,32 @@ class AwinOffersService:
 
         landing_url = self._first_string(item, "url", "landingUrl", "landing_url", "destinationUrl", "destination_url")
         affiliate_url = self._first_string(item, "urlTracking", "trackingUrl", "tracking_url", "affiliateUrl", "affiliate_url")
+        affiliate_url = self._repair_tracking_url(
+            affiliate_url=affiliate_url,
+            landing_url=landing_url,
+            advertiser_id=advertiser_id,
+        )
+        image_url = self._first_url(
+            item,
+            "imageUrl",
+            "image_url",
+            "image",
+            "thumbnailUrl",
+            "thumbnail_url",
+            "bannerUrl",
+            "banner_url",
+            "creativeUrl",
+            "creative_url",
+            "logoUrl",
+            "logo_url",
+        ) or self._first_url(
+            advertiser,
+            "imageUrl",
+            "image_url",
+            "logoUrl",
+            "logo_url",
+            "logo",
+        )
         target_url = affiliate_url or landing_url
         if not target_url:
             return None
@@ -183,6 +209,8 @@ class AwinOffersService:
         end_date = self._parse_datetime(self._first_string(item, "endDate", "end_date", "validUntil", "valid_until"))
         added_date = self._parse_datetime(self._first_string(item, "dateAdded", "date_added", "updatedAt", "updated_at"))
         now = datetime.now(timezone.utc)
+        if end_date is not None and end_date < now:
+            return None
 
         discount_text = self._clean_text(self._extract_discount_text(title, description))
         if self._is_low_value_non_discount_offer(
@@ -209,13 +237,68 @@ class AwinOffersService:
             code=self._clean_text(code).strip() if code else None,
             landing_url=landing_url or target_url,
             affiliate_url=affiliate_url,
-            image_url=None,
+            image_url=image_url,
             provider_id=f"awin_offers_{provider_suffix}",
             monetization_mode="affiliate",
             valid_from=start_date,
             valid_until=end_date,
             featured=featured,
             updated_at=added_date or now,
+        )
+
+    def _repair_tracking_url(
+        self,
+        *,
+        affiliate_url: str | None,
+        landing_url: str | None,
+        advertiser_id: Any,
+    ) -> str | None:
+        landing = (landing_url or "").strip()
+        raw_affiliate = (affiliate_url or "").strip()
+        advertiser = str(advertiser_id or "").strip()
+        publisher = get_settings().awin_publisher_id.strip()
+
+        if raw_affiliate:
+            parsed = urllib.parse.urlparse(raw_affiliate)
+            if "awin1.com" not in parsed.netloc.lower():
+                return raw_affiliate
+
+            params = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
+            existing_ued = (params.get("ued") or "").strip()
+            if existing_ued and not self._looks_like_generic_store_url(existing_ued):
+                return raw_affiliate
+            if not landing:
+                return raw_affiliate
+
+            params["ued"] = landing
+            if advertiser and advertiser.isdigit() and not params.get("awinmid"):
+                params["awinmid"] = advertiser
+            if publisher and not params.get("awinaffid"):
+                params["awinaffid"] = publisher
+            return urllib.parse.urlunparse(
+                parsed._replace(query=urllib.parse.urlencode(params, doseq=True))
+            )
+
+        if advertiser and advertiser.isdigit() and publisher and landing:
+            query = urllib.parse.urlencode(
+                {
+                    "awinmid": advertiser,
+                    "awinaffid": publisher,
+                    "ued": landing,
+                }
+            )
+            return f"https://www.awin1.com/cread.php?{query}"
+
+        return raw_affiliate or None
+
+    def _looks_like_generic_store_url(self, url: str) -> bool:
+        parsed = urllib.parse.urlparse(urllib.parse.unquote(str(url or "")))
+        host = parsed.netloc.lower()
+        path = parsed.path.strip("/").lower()
+        if not host:
+            return True
+        return path in {"", "/"} and any(
+            domain in host for domain in ("alibaba.com", "aliexpress.com")
         )
 
     def _first_value(self, data: dict[str, Any], *keys: str) -> Any:
@@ -236,24 +319,46 @@ class AwinOffersService:
         text = self._clean_text(str(value))
         return text or None
 
+    def _first_url(self, data: dict[str, Any], *keys: str) -> str | None:
+        for key in keys:
+            value = self._first_value(data, key)
+            if isinstance(value, dict):
+                nested = self._first_url(value, "url", "href", "src")
+                if nested:
+                    return nested
+            if value is None:
+                continue
+            text = html.unescape(str(value)).strip()
+            if text.startswith(("http://", "https://")):
+                return text
+        return None
 
     def _replace_mojibake_symbols(self, text: str) -> str:
-        # Awin sometimes returns an incomplete mojibake Euro sign as
-        # U+00E2 U+00AC ("â¬") instead of U+20AC ("€"). Keep these
-        # repairs explicit with chr() so source-file encoding cannot
-        # silently break the replacement.
+        euro = chr(0x20AC)
+        pound = chr(0x00A3)
+        c2 = chr(0x00C2)
+        e2 = chr(0x00E2)
+        ac = chr(0x00AC)
         replacements = {
-            chr(0x00E2) + chr(0x0082) + chr(0x00AC): "€",
-            chr(0x00E2) + chr(0x201A) + chr(0x00AC): "€",
-            chr(0x00E2) + chr(0x00AC): "€",
-            chr(0x00C2) + "£": "£",
-            chr(0x00C2) + "$": "$",
-            chr(0x00C2) + chr(0x00A0): " ",
-            "\ufeff": "",
+            e2 + chr(0x0082) + ac: euro,
+            e2 + chr(0x201A) + ac: euro,
+            e2 + chr(0x20AC) + chr(0x0161) + ac: euro,
+            e2 + ac: euro,
+            "â‚¬": euro,
+            "â¬": euro,
+            c2 + chr(0x00A3): pound,
+            "Â£": pound,
+            c2 + "$": "$",
+            "Â$": "$",
+            c2 + chr(0x00A0): " ",
+            c2 + " ": " ",
+            chr(0xFEFF): "",
+            chr(0xFFFD): "",
         }
         for bad, good in replacements.items():
             text = text.replace(bad, good)
-        return text
+        text = re.sub(r"(\d)([€£$])(?=\s*(?:off|OFF|for|FOR|$))", r"\1\2 ", text)
+        return re.sub(r"[ \t]+", " ", text).strip()
 
     def _clean_text(self, value: str) -> str:
         text = self._replace_mojibake_symbols(html.unescape(value).strip())
@@ -291,6 +396,8 @@ class AwinOffersService:
             "ï¼š": ":",
             "ï¼": ":",
             "：": ":",
+            "￡": "£",
+            "￥": "¥",
             " ": " ",
             # Common AliExpress PL offer labels. These often arrive either
             # in Polish or as partly-corrupted Polish mojibake. Keep them
@@ -315,24 +422,53 @@ class AwinOffersService:
         code: str | None,
         extracted_discount_text: str,
     ) -> bool:
-        if code or extracted_discount_text or promo_type == "coupon":
-            return False
-        text = f"{title} {description}".lower()
-        blocked_only_terms = (
+        cleaned_title = self._clean_text(title)
+        cleaned_description = self._clean_text(description)
+        cleaned_discount = self._clean_text(extracted_discount_text)
+        text = f"{cleaned_title} {cleaned_description} {cleaned_discount}".lower()
+
+        # DiscountHub promotion tab should contain actual coupons/sales, not
+        # generic service announcements, free-delivery messages, gifts, bundles
+        # or marketplace marketing claims that are not a user-actionable deal.
+        hard_block_terms = (
             "free shipping",
             "free delivery",
+            "free mainland uk delivery",
+            "free uk delivery",
             "free gift",
             "gift with purchase",
             "buy one get one",
             "bogo",
             "2 for 1",
             "3 for 2",
+            "alibaba lens",
+            "one image search",
+            "image search for price comparison",
+            "saving spotlight",
+            "below retail price",
+            "ai & app subscription",
+            "ai & app subspriction",
         )
-        if not any(term in text for term in blocked_only_terms):
+        if any(term in text for term in hard_block_terms):
+            return True
+
+        def has_concrete_discount(value: str) -> bool:
+            value = self._clean_text(value).lower()
+            if code:
+                return True
+            if re.search(r"\b\d{1,3}\s*%\s*(?:off|discount)?\b", value):
+                return True
+            if re.search(r"(?:[€£$]\s*\d+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?\s*[€£$])\s*(?:off|discount|save)?\b", value):
+                return True
+            if re.search(r"\b(?:save|get)\s+(?:up\s+to\s+)?(?:[€£$]\s*\d+|\d+\s*[€£$]|\d{1,3}\s*%)", value):
+                return True
             return False
-        # Keep real store sales even if the text also mentions a small gift.
-        sale_terms = ("sale", "off", "discount", "clearance", "outlet", "%", "€", "£", "$")
-        return not any(term in text for term in sale_terms)
+
+        generic_discount = cleaned_discount.lower().strip() in ("", "sale", "promo code", "promotion", "offer")
+        if promo_type != "coupon" and not code and generic_discount:
+            return not has_concrete_discount(f"{cleaned_title} {cleaned_description}")
+
+        return False
 
     def _parse_datetime(self, value: str | None) -> datetime | None:
         if not value:

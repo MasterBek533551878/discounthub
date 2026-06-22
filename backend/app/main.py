@@ -20,6 +20,7 @@ from app.core.security import validate_production_safety
 from app.db.database import initialize_database
 from app.services.default_feed_providers import default_feed_providers_service
 from app.services.feed_sync_scheduler import feed_sync_scheduler
+from app.services.promotion_cleanup_service import promotion_cleanup_service
 
 settings = get_settings()
 
@@ -28,6 +29,7 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     validate_production_safety(settings)
     initialize_database()
+    promotion_cleanup_service.cleanup_promotions()
     default_feed_providers_service.ensure_configured_providers()
     if settings.feed_sync_scheduler_enabled:
         await feed_sync_scheduler.start()

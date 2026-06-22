@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 import re
 import urllib.parse
@@ -145,6 +145,21 @@ def _canonical_ebay_item_url(url: str | None) -> str | None:
     return urllib.parse.urlunparse(("https", netloc, f"/itm/{item_id}", "", "", ""))
 
 
+def _deal_is_clickable_now(deal: DealResponse) -> bool:
+    now = datetime.now(timezone.utc)
+    if deal.expires_at is not None and deal.expires_at.astimezone(timezone.utc) < now:
+        return False
+
+    updated_at = deal.updated_at.astimezone(timezone.utc)
+    platform = (deal.platform or "").lower()
+    is_affiliate = deal.monetization_mode == "affiliate"
+    if is_affiliate and "aliexpress" in platform:
+        return updated_at >= now - timedelta(hours=48)
+    if is_affiliate:
+        return updated_at >= now - timedelta(days=7)
+    return updated_at >= now - timedelta(hours=72)
+
+
 @router.get("/deals", response_model=DealsPage, response_model_by_alias=True)
 def list_deals(
     q: str | None = None,
@@ -227,6 +242,9 @@ def click_deal(deal_id: str, request: Request) -> RedirectResponse:
         deal = deals_service.get_deal(deal_id, currency="USD")
     except DealNotFoundError:
         raise HTTPException(status_code=404, detail="Deal not found") from None
+
+    if not _deal_is_clickable_now(deal):
+        raise HTTPException(status_code=410, detail="Deal is no longer fresh enough to open")
 
     target_url = _safe_click_target_for_deal(deal)
     if not target_url:

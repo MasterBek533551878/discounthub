@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -45,14 +45,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
       type: _selectedType,
       stores: _selectedStores.toList(growable: false),
     );
-    _rememberStores(result.promotions);
+    _rememberStores(result.stores);
     return result;
   }
 
-  void _rememberStores(List<Promotion> promotions) {
+  void _rememberStores(List<String> storeNames) {
     final stores = List<String>.of(_knownStores);
-    for (final promotion in promotions) {
-      final store = promotion.store.trim();
+    for (final rawStore in storeNames) {
+      final store = rawStore.trim();
       if (store.isEmpty) continue;
       final exists = stores.any((value) => value.toLowerCase() == store.toLowerCase());
       if (!exists) stores.add(store);
@@ -383,8 +383,7 @@ class _PromotionStoreFilters extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        _HorizontalWheelScrollView(
           child: Row(
             children: [
               ChoiceChip(
@@ -433,8 +432,7 @@ class _PromotionTypeFilters extends StatelessWidget {
       _PromoFilterOption('flash_sale', AppStrings.select(en: 'Urgent', ru: 'Срочно', uz: 'Shoshilinch')),
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return _HorizontalWheelScrollView(
       child: Row(
         children: [
           for (final option in options) ...[
@@ -474,7 +472,14 @@ class _PromotionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            AppTheme.softBlue.withValues(alpha: 0.32),
+          ],
+        ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: AppTheme.line),
         boxShadow: AppTheme.cardShadow,
@@ -485,7 +490,7 @@ class _PromotionCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PromotionIcon(type: promotion.type),
+              _PromotionVisual(promotion: promotion),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -509,12 +514,31 @@ class _PromotionCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      promotion.store,
-                      style: const TextStyle(
-                        color: AppTheme.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: AppTheme.line),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.storefront_rounded, size: 14, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              promotion.store,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -593,30 +617,171 @@ class _PromotionCard extends StatelessWidget {
   }
 }
 
-class _PromotionIcon extends StatelessWidget {
-  const _PromotionIcon({required this.type});
+class _PromotionVisual extends StatelessWidget {
+  const _PromotionVisual({required this.promotion});
 
-  final String type;
+  final Promotion promotion;
 
   @override
   Widget build(BuildContext context) {
-    final icon = switch (type) {
-      'coupon' => Icons.confirmation_number_rounded,
-      'flash_sale' => Icons.bolt_rounded,
-      _ => Icons.local_mall_rounded,
-    };
+    final initials = _storeInitials(promotion.store);
+    final icon = _promotionIcon(promotion.type);
 
     return Container(
-      width: 50,
-      height: 50,
+      width: 66,
+      height: 66,
       decoration: BoxDecoration(
-        color: AppTheme.softBlue,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.line),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.primaryLight.withValues(alpha: 0.24),
+            AppTheme.primary.withValues(alpha: 0.10),
+          ],
+        ),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.12)),
+        borderRadius: BorderRadius.circular(22),
       ),
-      child: Icon(icon, color: AppTheme.primary),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -12,
+            top: -14,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.30),
+              ),
+            ),
+          ),
+          Center(
+            child: Text(
+              initials,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: const TextStyle(
+                color: AppTheme.primary,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 6,
+            bottom: 6,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: AppTheme.line),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                color: AppTheme.primary,
+                size: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  String _storeInitials(String store) {
+    final words = store
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.isEmpty) return 'DH';
+    if (words.length == 1) {
+      final word = words.first;
+      return String.fromCharCodes(word.runes.take(2)).toUpperCase();
+    }
+    return words.take(2).map((word) => String.fromCharCode(word.runes.first)).join().toUpperCase();
+  }
+}
+
+IconData _promotionIcon(String type) {
+  return switch (type) {
+    'coupon' => Icons.confirmation_number_rounded,
+    'flash_sale' => Icons.bolt_rounded,
+    _ => Icons.local_mall_rounded,
+  };
+}
+
+class _HorizontalWheelScrollView extends StatefulWidget {
+  const _HorizontalWheelScrollView({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HorizontalWheelScrollView> createState() => _HorizontalWheelScrollViewState();
+}
+
+class _HorizontalWheelScrollViewState extends State<_HorizontalWheelScrollView> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: (signal) {
+        if (signal is! PointerScrollEvent || !_controller.hasClients) return;
+        final horizontalDelta = signal.scrollDelta.dx;
+        final verticalDelta = signal.scrollDelta.dy;
+        final delta = horizontalDelta.abs() > verticalDelta.abs()
+            ? horizontalDelta
+            : verticalDelta;
+        if (delta == 0) return;
+
+        final position = _controller.position;
+        final target = (_controller.offset + delta)
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+        if (target == _controller.offset) return;
+        _controller.jumpTo(target);
+      },
+      child: ScrollConfiguration(
+        behavior: const _HorizontalDragScrollBehavior(),
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+class _HorizontalDragScrollBehavior extends MaterialScrollBehavior {
+  const _HorizontalDragScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        ...super.dragDevices,
+        PointerDeviceKind.mouse,
+      };
 }
 
 class _PromotionBadge extends StatelessWidget {

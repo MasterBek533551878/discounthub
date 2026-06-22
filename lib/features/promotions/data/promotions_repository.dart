@@ -9,11 +9,13 @@ class PromotionsLoadResult {
     required this.promotions,
     required this.totalCount,
     required this.baseUrl,
+    this.stores = const <String>[],
   });
 
   final List<Promotion> promotions;
   final int totalCount;
   final String baseUrl;
+  final List<String> stores;
 }
 
 class PromotionsRepository {
@@ -44,10 +46,34 @@ class PromotionsRepository {
           stores: stores,
           pageSize: 50,
         );
+        var storeNames = const <String>[];
+        try {
+          storeNames = await apiClient.getPromotionStores(
+            query: query,
+            type: type,
+          );
+        } catch (error) {
+          // Older backends may not expose /promotions/stores yet. Keep the page
+          // usable and fall back to stores from the loaded promotion cards.
+          debugPrint('DiscountHub promotion stores API failed: $baseUrl -> $error');
+        }
+        if (storeNames.isEmpty) {
+          final fallbackStores = <String>[];
+          for (final promotion in page.promotions) {
+            final promotionStore = promotion.store.trim();
+            if (promotionStore.isEmpty) continue;
+            final exists = fallbackStores.any(
+              (value) => value.toLowerCase() == promotionStore.toLowerCase(),
+            );
+            if (!exists) fallbackStores.add(promotionStore);
+          }
+          storeNames = List.unmodifiable(fallbackStores);
+        }
         return PromotionsLoadResult(
           promotions: page.promotions,
           totalCount: page.totalCount,
           baseUrl: baseUrl,
+          stores: storeNames,
         );
       } catch (error) {
         lastError = error;
