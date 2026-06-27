@@ -54,6 +54,10 @@ END
 from app.db.schema import (
     CREATE_CLICK_EVENTS_INDEXES_SQL,
     CREATE_CLICK_EVENTS_TABLE_SQL,
+    CREATE_PARTNER_OFFER_CLICK_EVENTS_INDEXES_SQL,
+    CREATE_PARTNER_OFFER_CLICK_EVENTS_TABLE_SQL,
+    CREATE_PARTNER_OFFERS_INDEXES_SQL,
+    CREATE_PARTNER_OFFERS_TABLE_SQL,
     CREATE_DEALS_INDEXES_SQL,
     CREATE_DEALS_TABLE_SQL,
     CREATE_FEED_PROVIDERS_INDEXES_SQL,
@@ -297,6 +301,59 @@ def _ensure_promotion_click_events_migrations(connection: sqlite3.Connection) ->
         """
     )
 
+
+def _ensure_partner_offers_migrations(connection: sqlite3.Connection) -> None:
+    _ensure_column(
+        connection,
+        table="partner_offers",
+        column="search_text",
+        definition="TEXT NOT NULL DEFAULT ''",
+    )
+    connection.execute(
+        """
+        UPDATE partner_offers
+        SET search_text = LOWER(
+            COALESCE(title, '') || ' ' ||
+            COALESCE(subtitle, '') || ' ' ||
+            COALESCE(description, '') || ' ' ||
+            COALESCE(partner_name, '') || ' ' ||
+            COALESCE(category, '') || ' ' ||
+            COALESCE(tags, '') || ' ' ||
+            COALESCE(offer_text, '') || ' ' ||
+            COALESCE(code, '') || ' ' ||
+            COALESCE(countries, '')
+        )
+        WHERE search_text IS NULL OR TRIM(search_text) = ''
+        """
+    )
+    connection.execute(
+        """
+        UPDATE partner_offers
+        SET monetization_mode = 'direct'
+        WHERE monetization_mode IS NULL
+           OR TRIM(monetization_mode) = ''
+           OR monetization_mode NOT IN ('affiliate', 'direct', 'pending_affiliate')
+        """
+    )
+
+
+def _ensure_partner_offer_click_events_migrations(connection: sqlite3.Connection) -> None:
+    _ensure_column(
+        connection,
+        table="partner_offer_click_events",
+        column="monetization_mode",
+        definition="TEXT NOT NULL DEFAULT 'direct'",
+    )
+    connection.execute(
+        """
+        UPDATE partner_offer_click_events
+        SET monetization_mode = 'direct'
+        WHERE monetization_mode IS NULL
+           OR TRIM(monetization_mode) = ''
+           OR monetization_mode NOT IN ('affiliate', 'direct', 'pending_affiliate')
+        """
+    )
+
 def initialize_database() -> None:
     from app.data.mock_deals import MOCK_DEALS
     from app.repositories.deals_repository import DealsRepository
@@ -354,6 +411,16 @@ def initialize_database() -> None:
         connection.execute(CREATE_PROMOTION_CLICK_EVENTS_TABLE_SQL)
         _ensure_promotion_click_events_migrations(connection)
         for statement in CREATE_PROMOTION_CLICK_EVENTS_INDEXES_SQL:
+            connection.execute(statement)
+
+        connection.execute(CREATE_PARTNER_OFFERS_TABLE_SQL)
+        _ensure_partner_offers_migrations(connection)
+        for statement in CREATE_PARTNER_OFFERS_INDEXES_SQL:
+            connection.execute(statement)
+
+        connection.execute(CREATE_PARTNER_OFFER_CLICK_EVENTS_TABLE_SQL)
+        _ensure_partner_offer_click_events_migrations(connection)
+        for statement in CREATE_PARTNER_OFFER_CLICK_EVENTS_INDEXES_SQL:
             connection.execute(statement)
 
         connection.commit()

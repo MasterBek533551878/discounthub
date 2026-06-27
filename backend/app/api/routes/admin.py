@@ -16,6 +16,12 @@ from app.models.deal import (
     DealSort,
     DealUpsertRequest,
 )
+from app.models.partner_offer import (
+    BulkPartnerOfferUpsertRequest,
+    PartnerOfferActionResponse,
+    PartnerOfferResponse,
+    PartnerOfferUpsertRequest,
+)
 from app.models.promotion import (
     AwinPromotionSyncRequest,
     AwinPromotionSyncResponse,
@@ -24,6 +30,7 @@ from app.models.promotion import (
 from app.services.awin_offers_service import awin_offers_service
 from app.services.deals_service import DealNotFoundError, deals_service
 from app.services.feed_import_service import feed_import_service
+from app.services.partner_offers_service import partner_offers_service
 from app.services.promotions_service import promotions_service
 from app.services.promotion_cleanup_service import promotion_cleanup_service
 
@@ -32,6 +39,33 @@ router = APIRouter(
     tags=["admin"],
     dependencies=[Depends(require_admin_token)],
 )
+
+
+
+
+@router.post("/partner-offers", response_model=PartnerOfferResponse, response_model_by_alias=True)
+def admin_upsert_partner_offer(payload: PartnerOfferUpsertRequest) -> PartnerOfferResponse:
+    return partner_offers_service.upsert_offer(payload)
+
+
+@router.post("/partner-offers/bulk", response_model=PartnerOfferActionResponse, response_model_by_alias=True)
+def admin_upsert_partner_offers(payload: BulkPartnerOfferUpsertRequest) -> PartnerOfferActionResponse:
+    count = partner_offers_service.upsert_offers(payload.items)
+    return PartnerOfferActionResponse(
+        status="ok",
+        message=f"Upserted {count} partner offer(s).",
+        offer_count=partner_offers_service.count_offers(),
+    )
+
+
+@router.delete("/partner-offers/{offer_id}", response_model=PartnerOfferActionResponse, response_model_by_alias=True)
+def admin_delete_partner_offer(offer_id: str) -> PartnerOfferActionResponse:
+    deleted = partner_offers_service.delete_offer(offer_id)
+    return PartnerOfferActionResponse(
+        status="ok" if deleted else "not_found",
+        message="Partner offer deleted." if deleted else "Partner offer not found.",
+        offer_count=partner_offers_service.count_offers(),
+    )
 
 
 @router.post(

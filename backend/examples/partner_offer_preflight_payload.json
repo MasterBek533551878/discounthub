@@ -1,0 +1,23 @@
+{
+  "id": "partner_preflight_launch_20260628",
+  "title": "PreFlight Lifetime Founder’s Pass",
+  "subtitle": "Local-first AI code safety gate for vibe coders and solo developers.",
+  "description": "PreFlight runs as a CLI, background daemon, MCP server and VS Code extension to help catch risky AI-generated code changes before shipping, including broken Supabase RLS, exposed secrets, SQL injection, command injection and risky architecture drift.",
+  "partnerName": "PreFlight",
+  "category": "devtools",
+  "tags": ["DevTools", "SaaS", "AI Coding", "CLI", "VS Code", "Security"],
+  "offerText": "Launch weekend lifetime deal with code DISCOUNTHUB",
+  "originalPriceText": "$35 / ₹3,000",
+  "currentPriceText": "$30 / ₹2,499 lifetime access",
+  "code": "DISCOUNTHUB",
+  "landingUrl": "https://preflight-vibe.vercel.app/",
+  "checkoutUrl": "https://buy.polar.sh/polar_cl_O8I8ASl3wIvmudZsRlQMUV8yFCP72tGFcVXqh1bCaiI",
+  "imageUrl": null,
+  "logoUrl": null,
+  "countries": "Global · Credit Card via Polar · UPI QR for India",
+  "monetizationMode": "direct",
+  "validFrom": "2026-06-27T00:00:00Z",
+  "validUntil": "2026-06-28T18:29:00Z",
+  "featured": true,
+  "verified": true
+}

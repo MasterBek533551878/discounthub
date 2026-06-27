@@ -184,3 +184,68 @@ CREATE_PROMOTION_CLICK_EVENTS_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_provider_id ON promotion_click_events(provider_id);",
     "CREATE INDEX IF NOT EXISTS idx_promotion_click_events_clicked_at ON promotion_click_events(clicked_at);",
 ]
+
+
+
+CREATE_PARTNER_OFFERS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS partner_offers (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    partner_name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'other',
+    tags TEXT NOT NULL DEFAULT '[]',
+    offer_text TEXT NOT NULL DEFAULT '',
+    original_price_text TEXT NOT NULL DEFAULT '',
+    current_price_text TEXT NOT NULL DEFAULT '',
+    code TEXT,
+    landing_url TEXT NOT NULL,
+    checkout_url TEXT,
+    image_url TEXT,
+    logo_url TEXT,
+    countries TEXT NOT NULL DEFAULT 'Global',
+    monetization_mode TEXT NOT NULL DEFAULT 'direct',
+    valid_from TEXT,
+    valid_until TEXT,
+    featured INTEGER NOT NULL DEFAULT 0,
+    verified INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT ''
+);
+"""
+
+CREATE_PARTNER_OFFERS_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_partner_name ON partner_offers(partner_name);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_category ON partner_offers(category);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_monetization_mode ON partner_offers(monetization_mode);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_valid_until ON partner_offers(valid_until);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_featured ON partner_offers(featured);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_verified ON partner_offers(verified);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_updated_at ON partner_offers(updated_at);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offers_search_text ON partner_offers(search_text);",
+]
+
+
+CREATE_PARTNER_OFFER_CLICK_EVENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS partner_offer_click_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    offer_id TEXT NOT NULL,
+    partner_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    monetization_mode TEXT NOT NULL DEFAULT 'direct',
+    target_url TEXT NOT NULL,
+    referrer TEXT,
+    user_agent TEXT,
+    ip_address TEXT,
+    clicked_at TEXT NOT NULL
+);
+"""
+
+CREATE_PARTNER_OFFER_CLICK_EVENTS_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_partner_offer_click_events_offer_id ON partner_offer_click_events(offer_id);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offer_click_events_partner_name ON partner_offer_click_events(partner_name);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offer_click_events_category ON partner_offer_click_events(category);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offer_click_events_monetization_mode ON partner_offer_click_events(monetization_mode);",
+    "CREATE INDEX IF NOT EXISTS idx_partner_offer_click_events_clicked_at ON partner_offer_click_events(clicked_at);",
+]
