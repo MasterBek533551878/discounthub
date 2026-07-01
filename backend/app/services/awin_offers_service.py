@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from app.core.config import get_settings
 from app.models.promotion import AwinPromotionSyncRequest, PromotionUpsertRequest
+from app.services.restricted_offer_filter import restricted_offer_match
 
 
 class AwinOffersService:
@@ -213,6 +214,17 @@ class AwinOffersService:
             return None
 
         discount_text = self._clean_text(self._extract_discount_text(title, description))
+        if restricted_offer_match((
+            title,
+            description,
+            terms,
+            store,
+            discount_text,
+            landing_url,
+            affiliate_url,
+        )):
+            return None
+
         if self._is_low_value_non_discount_offer(
             title=title,
             description=description,

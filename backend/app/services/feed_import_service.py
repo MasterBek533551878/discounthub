@@ -17,6 +17,7 @@ from app.models.feed_provider import FeedProviderAdapter
 from app.services.feed_adapters import feed_adapter_service
 from app.services.ebay_browse_service import ebay_browse_service
 from app.services.mercadolibre_service import mercadolibre_service
+from app.services.restricted_offer_filter import restricted_offer_match_for_mapping
 
 
 class FeedImportService:
@@ -109,6 +110,23 @@ class FeedImportService:
             )
 
         normalized_items = feed_adapter_service.normalize_items(adapter=adapter, raw_items=raw_items)
+        normalized_items = [
+            item
+            for item in normalized_items
+            if not restricted_offer_match_for_mapping(
+                item,
+                keys=(
+                    "title",
+                    "description",
+                    "platform",
+                    "category",
+                    "productUrl",
+                    "product_url",
+                    "affiliateUrl",
+                    "affiliate_url",
+                ),
+            )
+        ]
 
         try:
             return DealsImportRequest(items=normalized_items, replace=replace)

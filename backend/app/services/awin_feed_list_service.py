@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from app.core.config import get_settings
+from app.services.restricted_offer_filter import restricted_offer_match_for_mapping
 
 
 @dataclass(frozen=True)
@@ -326,6 +327,7 @@ class AwinFeedListService:
             "out_of_stock": 0,
             "no_discount_price_pair": 0,
             "below_min_discount": 0,
+            "restricted_offer": 0,
             "passed": 0,
             "headers": sorted({str(key) for item in items[:3] for key in item.keys()})[:40],
         }
@@ -383,6 +385,36 @@ class AwinFeedListService:
                 stats["out_of_stock"] += 1
                 continue
 
+            if restricted_offer_match_for_mapping(
+                item,
+                keys=(
+                    "product_name",
+                    "productName",
+                    "productname",
+                    "aw_product_name",
+                    "name",
+                    "title",
+                    "description",
+                    "product_description",
+                    "product_short_description",
+                    "short_description",
+                    "merchant_product_description",
+                    "category_name",
+                    "merchant_category",
+                    "product_category",
+                    "category",
+                    "product_type",
+                    "merchant_product_url",
+                    "merchant_deep_link",
+                    "product_url",
+                    "productUrl",
+                    "url",
+                    "link",
+                ),
+            ):
+                stats["restricted_offer"] += 1
+                continue
+
             # DiscountHub must show real discounts only. Awin feeds may contain a
             # full product catalogue, so we only import rows where the feed gives
             # enough pricing data to prove that current price is lower than old/RRP/list price.
@@ -406,7 +438,8 @@ class AwinFeedListService:
             f"missing_title={stats.get('missing_title', 0)}, missing_link={stats.get('missing_link', 0)}, "
             f"missing_image={stats.get('missing_image', 0)}, missing_current_price={stats.get('missing_current_price', 0)}, "
             f"no_discount_price_pair={stats.get('no_discount_price_pair', 0)}, "
-            f"below_min_discount={stats.get('below_min_discount', 0)}, out_of_stock={stats.get('out_of_stock', 0)}, "
+            f"below_min_discount={stats.get('below_min_discount', 0)}, restricted_offer={stats.get('restricted_offer', 0)}, "
+            f"out_of_stock={stats.get('out_of_stock', 0)}, "
             f"headers=[{headers_text}]"
         )
 

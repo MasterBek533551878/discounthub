@@ -6,6 +6,7 @@ import re
 import threading
 
 from app.db.database import get_connection
+from app.services.restricted_offer_filter import restricted_offer_match
 
 
 AWIN_OFFERS_PROVIDER_PREFIX = "awin_offers_"
@@ -94,7 +95,7 @@ class PromotionCleanupService:
             rows = connection.execute(
                 """
                 SELECT id, type, title, description, store, discount_text, code,
-                       provider_id, valid_until
+                       landing_url, affiliate_url, provider_id, valid_until
                 FROM promotions
                 """
             ).fetchall()
@@ -219,6 +220,17 @@ class PromotionCleanupService:
         discount_text = self.normalize_text(str((row.get("discount_text") if isinstance(row, dict) else row["discount_text"]) or ""))
         code = self.normalize_text(str((row.get("code") if isinstance(row, dict) else row["code"]) or "")).strip()
         full_text = f"{title} {description} {discount_text}".lower()
+
+        match = restricted_offer_match((
+            title,
+            description,
+            discount_text,
+            row.get("store") if isinstance(row, dict) else row["store"],
+            row.get("landing_url") if isinstance(row, dict) else row["landing_url"],
+            row.get("affiliate_url") if isinstance(row, dict) else row["affiliate_url"],
+        ))
+        if match is not None:
+            return match.reason
 
         for term in HARD_BLOCK_TERMS:
             if term in full_text:
