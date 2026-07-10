@@ -16,6 +16,7 @@ CASE UPPER(currency)
     WHEN 'EUR' THEN 0.92
     WHEN 'GBP' THEN 0.78
     WHEN 'AUD' THEN 1.52
+    WHEN 'CNY' THEN 6.76
     WHEN 'UZS' THEN 12650.0
     WHEN 'TRY' THEN 32.5
     WHEN 'AED' THEN 3.67
@@ -328,10 +329,10 @@ class DealsRepository:
         with get_connection() as connection:
             rows = connection.execute(
                 f"""
-                SELECT public_platform AS platform, COUNT(*) AS count
+                SELECT platform AS platform, COUNT(*) AS count
                 FROM deals
-                WHERE TRIM(public_platform) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_NOT_EXPIRED_DEAL_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY}
-                GROUP BY public_platform
+                WHERE TRIM(platform) <> '' AND {SQL_REAL_DISCOUNT_ONLY} AND {SQL_NOT_EXPIRED_DEAL_ONLY} AND {SQL_PUBLIC_FRESH_DEAL_ONLY}
+                GROUP BY platform
                 ORDER BY count DESC, platform ASC
                 """
             ).fetchall()
@@ -532,8 +533,10 @@ class DealsRepository:
         platform_values = self._split_filter_values(platform)
         if platform_values:
             placeholders = ", ".join("?" for _ in platform_values)
-            clauses.append(f"LOWER(public_platform) IN ({placeholders})")
-            params.extend(value.lower() for value in platform_values)
+            clauses.append(f"(LOWER(platform) IN ({placeholders}) OR LOWER(public_platform) IN ({placeholders}))")
+            lowered_platform_values = [value.lower() for value in platform_values]
+            params.extend(lowered_platform_values)
+            params.extend(lowered_platform_values)
 
         category_values = self._split_filter_values(category)
         if category_values:
@@ -626,7 +629,7 @@ class DealsRepository:
         if column not in allowed_columns:
             raise ValueError(f"Unsupported facet column: {column}")
 
-        value_sql = "public_platform" if column == "platform" else column
+        value_sql = column
         rows = connection.execute(
             f"""
             SELECT {value_sql} AS value, COUNT(*) AS count
@@ -658,7 +661,7 @@ class DealsRepository:
         if column not in allowed_columns:
             raise ValueError(f"Unsupported facet column: {column}")
 
-        value_sql = "public_platform" if column == "platform" else column
+        value_sql = column
 
         rows = connection.execute(
             f"""
@@ -892,6 +895,7 @@ class DealsRepository:
             "EUR": 0.92,
             "GBP": 0.78,
             "AUD": 1.52,
+            "CNY": 6.76,
             "UZS": 12650.0,
             "TRY": 32.5,
             "AED": 3.67,
