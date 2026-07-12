@@ -1,0 +1,29 @@
+{
+  "id": "human-write",
+  "title": "Human Write Lifetime Access",
+  "subtitle": "AI humanizer, grammar checker and writing assistant for clearer, more natural drafts.",
+  "description": "Rewrite rough drafts, reduce AI likeness, check grammar, analyze writing quality and keep your saved voice across web and desktop. Pay once for lifetime access with no monthly subscription.",
+  "partnerName": "Human Write",
+  "category": "ai-tools",
+  "tags": [
+    "AI Writing",
+    "AI Humanizer",
+    "Grammar Checker",
+    "Writing Assistant",
+    "Lifetime Deal"
+  ],
+  "offerText": "$50 off lifetime access with code EARLYBIRD",
+  "originalPriceText": "$129",
+  "currentPriceText": "$79 lifetime access",
+  "code": "EARLYBIRD",
+  "landingUrl": "https://humanwrite.cc",
+  "checkoutUrl": null,
+  "imageUrl": "https://discounthub.uz/public/images/partner-offers/human-write-banner.png",
+  "logoUrl": "https://discounthub.uz/public/images/partner-offers/human-write-logo.png",
+  "countries": "Global",
+  "monetizationMode": "direct",
+  "validFrom": "2026-07-12T00:00:00Z",
+  "validUntil": "2026-08-31T23:59:59Z",
+  "featured": true,
+  "verified": true
+}
