@@ -228,9 +228,28 @@ class DealsService:
         return [self._deal_to_upsert_request(deal) for deal in deals]
 
     def import_deals(self, payloads: list[DealUpsertRequest], *, replace: bool = False) -> int:
+        # Admin imports may intentionally replace the complete catalogue.
         if replace:
             self._repository.delete_all()
         deals = [self._request_to_deal(payload) for payload in payloads]
+        self._repository.upsert_many(deals)
+        return len(deals)
+
+    def import_provider_deals(
+        self,
+        payloads: list[DealUpsertRequest],
+        *,
+        provider_id: str,
+        replace: bool = False,
+    ) -> int:
+        provider = str(provider_id or "").strip()
+        if not provider:
+            raise ValueError("provider_id is required for provider feed imports")
+        deals = [self._request_to_deal(payload) for payload in payloads]
+        if replace:
+            # A feed provider owns only its own rows. Never wipe unrelated eBay,
+            # Awin, promotions-adjacent, or direct-source deals during its sync.
+            self._repository.delete_provider_deals(provider_id=provider)
         self._repository.upsert_many(deals)
         return len(deals)
 

@@ -180,7 +180,7 @@ class AwinFeedListService:
         query = urllib.parse.parse_qs(parsed.query)
 
         return AwinFeedListOptions(
-            max_feeds=self._bounded_int(query.get("max_feeds", [settings.awin_feed_max_feeds])[0], minimum=1, maximum=25),
+            max_feeds=self._bounded_int(query.get("max_feeds", [settings.awin_feed_max_feeds])[0], minimum=1, maximum=50),
             max_items_per_feed=self._bounded_int(
                 query.get("max_items_per_feed", [settings.awin_feed_max_items_per_feed])[0],
                 minimum=1,
@@ -221,20 +221,17 @@ class AwinFeedListService:
         )
 
     def _select_feed_rows(self, rows: list[dict[str, Any]], *, options: AwinFeedListOptions) -> list["_AwinFeedRow"]:
-        feeds: list[_AwinFeedRow] = []
+        candidates: list[_AwinFeedRow] = []
         seen_urls: set[str] = set()
 
         for row in rows:
             raw_url = self._pick_url(row)
-            if not raw_url:
-                continue
-            if raw_url in seen_urls:
+            if not raw_url or raw_url in seen_urls:
                 continue
 
             if options.joined_only and not self._looks_joined_or_allowed(row):
                 continue
 
-            seen_urls.add(raw_url)
             advertiser_name = self._pick_string(row, *self._ADVERTISER_KEYS) or "Awin advertiser"
             advertiser_id = self._pick_string(row, *self._ADVERTISER_ID_KEYS) or ""
 
@@ -243,7 +240,8 @@ class AwinFeedListService:
             if options.advertiser_name and options.advertiser_name.strip().lower() not in advertiser_name.strip().lower():
                 continue
 
-            feeds.append(
+            seen_urls.add(raw_url)
+            candidates.append(
                 _AwinFeedRow(
                     feed_url=raw_url,
                     feed_name=self._pick_string(row, "feed_name", "feed", "name") or advertiser_name,
@@ -254,10 +252,48 @@ class AwinFeedListService:
                 )
             )
 
-            if len(feeds) >= options.max_feeds:
+        if options.advertiser_id or options.advertiser_name:
+            # Targeted providers intentionally need several feeds from one merchant
+            # (for example TTfone/Myprotein). Preserve the upstream order for them.
+            return candidates[: options.max_feeds]
+
+        # The general joined-advertisers provider must not let one merchant with
+        # many category feeds consume the whole safety budget. First select one
+        # feed per advertiser, then use the remaining slots in original Awin order.
+        # This keeps broad partner coverage while still allowing large merchants
+        # such as AliExpress to contribute additional category feeds.
+        selected: list[_AwinFeedRow] = []
+        selected_urls: set[str] = set()
+        seen_advertisers: set[str] = set()
+
+        for feed in candidates:
+            advertiser_key = self._advertiser_key(feed)
+            if advertiser_key in seen_advertisers:
+                continue
+            seen_advertisers.add(advertiser_key)
+            selected.append(feed)
+            selected_urls.add(feed.feed_url)
+            if len(selected) >= options.max_feeds:
+                return selected
+
+        for feed in candidates:
+            if feed.feed_url in selected_urls:
+                continue
+            selected.append(feed)
+            selected_urls.add(feed.feed_url)
+            if len(selected) >= options.max_feeds:
                 break
 
-        return feeds
+        return selected
+
+    def _advertiser_key(self, feed: "_AwinFeedRow") -> str:
+        advertiser_id = feed.advertiser_id.strip().lower()
+        if advertiser_id:
+            return f"id:{advertiser_id}"
+        advertiser_name = feed.advertiser_name.strip().lower()
+        if advertiser_name and advertiser_name != "awin advertiser":
+            return f"name:{advertiser_name}"
+        return f"url:{feed.feed_url}"
 
     def _looks_joined_or_allowed(self, row: dict[str, Any]) -> bool:
         status_text = " ".join(

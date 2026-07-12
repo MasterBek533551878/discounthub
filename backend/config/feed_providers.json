@@ -1,4 +1,4 @@
-﻿[
+[
   {
     "id": "ebay_browse_headphones",
     "name": "eBay Browse API - Discounted Headphones Deals",
@@ -530,11 +530,10 @@
   {
     "id": "awin_feed_list",
     "name": "Awin Product Feed List - joined advertisers",
-    "url": "awin://feed-list?max_feeds=20&max_items_per_feed=500&min_discount_percent=1&joined_only=true",
+    "url": "awin://feed-list?max_feeds=40&max_items_per_feed=500&min_discount_percent=1&joined_only=true",
     "adapter": "awin_feed_list_api",
     "enabled": true,
     "replaceOnSync": false,
     "monetizationMode": "affiliate"
   }
 ]
-

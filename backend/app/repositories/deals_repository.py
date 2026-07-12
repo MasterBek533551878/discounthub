@@ -430,6 +430,18 @@ class DealsRepository:
             connection.commit()
         return int(cursor.rowcount or 0)
 
+    def delete_provider_deals(self, *, provider_id: str) -> int:
+        provider = str(provider_id or "").strip()
+        if not provider:
+            return 0
+        with get_connection() as connection:
+            cursor = connection.execute(
+                "DELETE FROM deals WHERE provider_id = ?",
+                (provider,),
+            )
+            connection.commit()
+        return int(cursor.rowcount or 0)
+
     def delete_all(self) -> int:
         with get_connection() as connection:
             cursor = connection.execute("DELETE FROM deals")

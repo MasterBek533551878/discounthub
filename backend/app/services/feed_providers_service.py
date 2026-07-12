@@ -118,8 +118,9 @@ class FeedProvidersService:
                         item.monetization_mode = "affiliate"
                     else:
                         item.monetization_mode = "direct"
-            imported_count = deals_service.import_deals(
+            imported_count = deals_service.import_provider_deals(
                 import_request.items,
+                provider_id=provider.id,
                 replace=import_request.replace,
             )
             stale_deleted_count = 0

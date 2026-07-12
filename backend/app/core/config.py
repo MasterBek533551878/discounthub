@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     awin_datafeed_api_key: str = ""
     awin_feed_list_url: str = ""
     awin_feed_list_endpoint_template: str = "https://productdata.awin.com/datafeed/list/apikey/{api_key}"
-    awin_feed_max_feeds: int = 20
+    awin_feed_max_feeds: int = 40
     awin_feed_max_items_per_feed: int = 80
     awin_feed_min_discount_percent: int = 10
 
