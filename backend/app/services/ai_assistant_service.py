@@ -229,26 +229,42 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
         )
 
     def _deals(self, intent: SearchIntent, query: str) -> list[AiOfferCard]:
-        try:
-            items, _ = deals_service.list_deals(
-                q=query or None,
-                platform=intent.platform.strip() or None,
-                category=intent.category.strip() or None,
-                ships_to=intent.country.strip() or None,
-                delivery_region=None,
-                currency="USD",
-                min_discount=intent.min_discount or None,
-                min_rating=None,
-                max_price=intent.max_price or None,
-                free_shipping=None,
-                verified=None,
-                monetization_mode=None,
-                sort=intent.sort if intent.sort in {"score_desc", "discount_desc", "price_asc", "newest"} else "score_desc",
-                page=1,
-                page_size=6,
-            )
-        except (TypeError, ValueError):
-            return []
+        items = []
+
+        for candidate_query in self._deal_query_variants(query):
+            try:
+                items, _ = deals_service.list_deals(
+                    q=candidate_query or None,
+                    platform=intent.platform.strip() or None,
+                    category=intent.category.strip() or None,
+                    ships_to=intent.country.strip() or None,
+                    delivery_region=None,
+                    currency="USD",
+                    min_discount=intent.min_discount or None,
+                    min_rating=None,
+                    max_price=intent.max_price or None,
+                    free_shipping=None,
+                    verified=None,
+                    monetization_mode=None,
+                    sort=(
+                        intent.sort
+                        if intent.sort in {
+                            "score_desc",
+                            "discount_desc",
+                            "price_asc",
+                            "newest",
+                        }
+                        else "score_desc"
+                    ),
+                    page=1,
+                    page_size=6,
+                )
+            except (TypeError, ValueError):
+                continue
+
+            if items:
+                break
+
         return [
             AiOfferCard(
                 kind="deal",
@@ -344,20 +360,7 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             },
         )
 
-        category = cls._optional_filter(
-            intent.category,
-            {
-                "all",
-                "any",
-                "all categories",
-                "all products",
-                "\u0432\u0441\u0435",
-                "\u043b\u044e\u0431\u0430\u044f",
-                "\u043b\u044e\u0431\u044b\u0435",
-                "\u0432\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438",
-                "\u0432\u0441\u0435 \u0442\u043e\u0432\u0430\u0440\u044b",
-            },
-        )
+        category = cls._normalize_category(intent.category)
 
         country = cls._normalize_country(intent.country)
 
@@ -395,6 +398,119 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             return ""
 
         return cleaned
+
+    @classmethod
+    def _normalize_category(cls, value: str) -> str:
+        cleaned = cls._optional_filter(
+            value,
+            {
+                "all",
+                "any",
+                "all categories",
+                "all products",
+                "\u0432\u0441\u0435",
+                "\u043b\u044e\u0431\u0430\u044f",
+                "\u043b\u044e\u0431\u044b\u0435",
+                "\u0432\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438",
+                "\u0432\u0441\u0435 \u0442\u043e\u0432\u0430\u0440\u044b",
+            },
+        )
+
+        if not cleaned:
+            return ""
+
+        normalized = (
+            cleaned.casefold()
+            .replace("_", " ")
+            .replace("-", " ")
+        )
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+
+        aliases = {
+            "laptop": "Computers",
+            "laptops": "Computers",
+            "notebook": "Computers",
+            "notebooks": "Computers",
+            "ultrabook": "Computers",
+            "ultrabooks": "Computers",
+            "computer": "Computers",
+            "computers": "Computers",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a": "Computers",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a\u0438": "Computers",
+            "\u043a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440": "Computers",
+            "\u043a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440\u044b": "Computers",
+        }
+
+        return aliases.get(normalized, cleaned)
+
+    @classmethod
+    def _deal_query_variants(cls, value: str) -> list[str]:
+        cleaned = cls._clean(value)
+
+        if not cleaned:
+            return [""]
+
+        normalized = (
+            cleaned.casefold()
+            .replace("_", " ")
+            .replace("-", " ")
+        )
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+
+        variants = [cleaned]
+
+        if normalized.endswith("s") and len(normalized) > 3:
+            variants.append(normalized[:-1])
+
+        laptop_terms = {
+            "laptop",
+            "laptops",
+            "notebook",
+            "notebooks",
+            "ultrabook",
+            "ultrabooks",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a\u0438",
+        }
+
+        words = set(re.findall(r"[^\W_]+", normalized))
+
+        if words & laptop_terms:
+            synonyms = [
+                "notebook",
+                "thinkpad",
+                "latitude",
+                "macbook",
+                "chromebook",
+                "ultrabook",
+            ]
+
+            for synonym in synonyms:
+                candidate = normalized
+
+                for term in laptop_terms:
+                    candidate = re.sub(
+                        rf"(?<!\w){re.escape(term)}(?!\w)",
+                        synonym,
+                        candidate,
+                    )
+
+                variants.append(candidate)
+
+            if words.issubset(laptop_terms):
+                variants.extend(synonyms)
+
+        unique = []
+
+        for variant in variants:
+            candidate = cls._clean(variant)
+
+            if candidate and candidate.casefold() not in {
+                item.casefold() for item in unique
+            }:
+                unique.append(candidate)
+
+        return unique
 
     @classmethod
     def _normalize_country(
