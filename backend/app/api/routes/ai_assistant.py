@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, status
 
-from app.core.config import get_settings
+from app.core.ai_config import get_ai_settings
 from app.models.ai_assistant import (
     AiAssistantStatus,
     AiChatRequest,
@@ -25,7 +25,7 @@ def _client_key(request: Request) -> str:
 
 @router.get("/status", response_model=AiAssistantStatus, response_model_by_alias=True)
 def ai_status() -> AiAssistantStatus:
-    settings = get_settings()
+    settings = get_ai_settings()
     return AiAssistantStatus(
         enabled=settings.ai_assistant_enabled,
         provider=ai_assistant_service.provider_name,
