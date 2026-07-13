@@ -11,7 +11,7 @@ from urllib import request as urllib_request
 
 from pydantic import BaseModel, Field, ValidationError
 
-from app.core.config import get_settings
+from app.core.ai_config import get_ai_settings
 from app.models.ai_assistant import AiChatHistoryItem, AiOfferCard
 from app.services.deals_service import deals_service
 from app.services.partner_offers_service import partner_offers_service
@@ -68,7 +68,7 @@ class AiAssistantService:
 
     @property
     def settings(self):
-        return get_settings()
+        return get_ai_settings()
 
     @property
     def provider_name(self) -> str:
