@@ -87,7 +87,7 @@ class AiAssistantService:
             raise AiAssistantUnavailableError("AI assistant is disabled")
 
         intent, provider = self._extract_intent(message, history)
-        intent = self._normalize_intent(intent)
+        intent = self._normalize_intent(intent, message)
         language = "ru" if intent.language.lower().startswith("ru") or re.search(r"[а-яё]", message.lower()) else "en"
         if intent.needs_clarification:
             question = intent.clarifying_question.strip() or self._clarifying_question(language)
@@ -343,6 +343,7 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
     def _normalize_intent(
         cls,
         intent: SearchIntent,
+        message: str = "",
     ) -> SearchIntent:
         platform = cls._optional_filter(
             intent.platform,
@@ -360,9 +361,20 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             },
         )
 
-        category = cls._normalize_category(intent.category)
+        country = cls._normalize_country(
+            intent.country,
+        )
 
-        country = cls._normalize_country(intent.country)
+        platform, country = cls._normalize_marketplace_region(
+            platform,
+            country,
+            message,
+        )
+
+        category = cls._normalize_category(
+            intent.category,
+            intent.query,
+        )
 
         return intent.model_copy(
             update={
@@ -400,7 +412,126 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
         return cleaned
 
     @classmethod
-    def _normalize_category(cls, value: str) -> str:
+    def _normalize_marketplace_region(
+        cls,
+        platform: str,
+        country: str,
+        message: str,
+    ) -> tuple[str, str]:
+        def normalize_text(value: str) -> str:
+            normalized = (
+                str(value or "")
+                .casefold()
+                .replace("_", " ")
+                .replace("-", " ")
+                .replace(".", " ")
+            )
+
+            return re.sub(
+                r"\s+",
+                " ",
+                normalized,
+            ).strip()
+
+        normalized_platform = normalize_text(platform)
+        normalized_message = normalize_text(message)
+
+        regional_marketplaces = {
+            "DE": (
+                "eBay DE",
+                {
+                    "ebay de",
+                    "ebay germany",
+                    "ebay deutschland",
+                },
+            ),
+            "US": (
+                "eBay US",
+                {
+                    "ebay us",
+                    "ebay usa",
+                    "ebay united states",
+                    "ebay com",
+                },
+            ),
+            "GB": (
+                "eBay GB",
+                {
+                    "ebay gb",
+                    "ebay uk",
+                    "ebay united kingdom",
+                    "ebay co uk",
+                },
+            ),
+            "ES": (
+                "eBay ES",
+                {
+                    "ebay es",
+                    "ebay spain",
+                    "ebay espa\u00f1a",
+                },
+            ),
+            "FR": (
+                "eBay FR",
+                {
+                    "ebay fr",
+                    "ebay france",
+                },
+            ),
+            "IT": (
+                "eBay IT",
+                {
+                    "ebay it",
+                    "ebay italy",
+                    "ebay italia",
+                },
+            ),
+            "AU": (
+                "eBay AU",
+                {
+                    "ebay au",
+                    "ebay australia",
+                    "ebay com au",
+                },
+            ),
+        }
+
+        for country_code, (
+            canonical_platform,
+            aliases,
+        ) in regional_marketplaces.items():
+            normalized_canonical = normalize_text(
+                canonical_platform,
+            )
+
+            platform_is_regional = (
+                normalized_platform == normalized_canonical
+                or normalized_platform in aliases
+            )
+
+            region_is_explicit = any(
+                alias in normalized_message
+                for alias in aliases
+            )
+
+            if platform_is_regional:
+                return canonical_platform, ""
+
+            if (
+                normalized_platform == "ebay"
+                and country == country_code
+                and region_is_explicit
+            ):
+                return canonical_platform, ""
+
+        return platform, country
+
+    @classmethod
+    def _normalize_category(
+        cls,
+        value: str,
+        query: str = "",
+    ) -> str:
         cleaned = cls._optional_filter(
             value,
             {
@@ -424,7 +555,76 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             .replace("_", " ")
             .replace("-", " ")
         )
-        normalized = re.sub(r"\s+", " ", normalized).strip()
+        normalized = re.sub(
+            r"\s+",
+            " ",
+            normalized,
+        ).strip()
+
+        laptop_terms = {
+            "laptop",
+            "laptops",
+            "notebook",
+            "notebooks",
+            "ultrabook",
+            "ultrabooks",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a",
+            "\u043d\u043e\u0443\u0442\u0431\u0443\u043a\u0438",
+        }
+
+        laptop_modifiers = {
+            "gaming",
+            "refurbished",
+            "used",
+            "cheap",
+            "affordable",
+            "budget",
+            "business",
+            "student",
+            "lightweight",
+            "best",
+            "new",
+            "deal",
+            "deals",
+            "\u0438\u0433\u0440\u043e\u0432\u043e\u0439",
+            "\u0438\u0433\u0440\u043e\u0432\u044b\u0435",
+            "\u0431\u044e\u0434\u0436\u0435\u0442\u043d\u044b\u0439",
+            "\u0431\u044e\u0434\u0436\u0435\u0442\u043d\u044b\u0435",
+            "\u043d\u0435\u0434\u043e\u0440\u043e\u0433\u043e\u0439",
+            "\u043d\u0435\u0434\u043e\u0440\u043e\u0433\u0438\u0435",
+            "\u043d\u043e\u0432\u044b\u0439",
+            "\u043d\u043e\u0432\u044b\u0435",
+        }
+
+        normalized_query = (
+            str(query or "")
+            .casefold()
+            .replace("_", " ")
+            .replace("-", " ")
+        )
+        normalized_query = re.sub(
+            r"\s+",
+            " ",
+            normalized_query,
+        ).strip()
+
+        query_words = {
+            word
+            for word in re.findall(
+                r"[^\W_]+",
+                normalized_query,
+            )
+            if not word.isdigit()
+        }
+
+        if (
+            query_words
+            and query_words & laptop_terms
+            and query_words.issubset(
+                laptop_terms | laptop_modifiers
+            )
+        ):
+            return "Computers"
 
         aliases = {
             "laptop": "Computers",
@@ -441,7 +641,10 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             "\u043a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440\u044b": "Computers",
         }
 
-        return aliases.get(normalized, cleaned)
+        return aliases.get(
+            normalized,
+            cleaned,
+        )
 
     @classmethod
     def _deal_query_variants(cls, value: str) -> list[str]:
