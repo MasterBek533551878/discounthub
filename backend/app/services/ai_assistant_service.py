@@ -87,6 +87,7 @@ class AiAssistantService:
             raise AiAssistantUnavailableError("AI assistant is disabled")
 
         intent, provider = self._extract_intent(message, history)
+        intent = self._normalize_intent(intent)
         language = "ru" if intent.language.lower().startswith("ru") or re.search(r"[а-яё]", message.lower()) else "en"
         if intent.needs_clarification:
             question = intent.clarifying_question.strip() or self._clarifying_question(language)
@@ -321,6 +322,146 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             )
             for item in items
         ]
+
+    @classmethod
+    def _normalize_intent(
+        cls,
+        intent: SearchIntent,
+    ) -> SearchIntent:
+        platform = cls._optional_filter(
+            intent.platform,
+            {
+                "all",
+                "any",
+                "all stores",
+                "all marketplaces",
+                "all platforms",
+                "???",
+                "?????",
+                "?????",
+                "??? ????????",
+                "??? ????????????",
+            },
+        )
+
+        category = cls._optional_filter(
+            intent.category,
+            {
+                "all",
+                "any",
+                "all categories",
+                "all products",
+                "???",
+                "?????",
+                "?????",
+                "??? ?????????",
+                "??? ??????",
+            },
+        )
+
+        country = cls._normalize_country(intent.country)
+
+        return intent.model_copy(
+            update={
+                "platform": platform,
+                "category": category,
+                "country": country,
+            }
+        )
+
+    @staticmethod
+    def _optional_filter(
+        value: str,
+        empty_values: set[str],
+    ) -> str:
+        cleaned = re.sub(
+            r"\s+",
+            " ",
+            str(value or ""),
+        ).strip()
+
+        normalized = (
+            cleaned.casefold()
+            .replace("_", " ")
+            .replace("-", " ")
+        )
+        normalized = re.sub(
+            r"\s+",
+            " ",
+            normalized,
+        ).strip()
+
+        if normalized in empty_values:
+            return ""
+
+        return cleaned
+
+    @classmethod
+    def _normalize_country(
+        cls,
+        value: str,
+    ) -> str:
+        cleaned = cls._optional_filter(
+            value,
+            {
+                "all",
+                "any",
+                "global",
+                "worldwide",
+                "international",
+                "everywhere",
+                "all countries",
+                "???",
+                "?????",
+                "?????????",
+                "?? ????? ????",
+                "??? ??????",
+            },
+        )
+
+        if not cleaned:
+            return ""
+
+        normalized = (
+            cleaned.casefold()
+            .replace("_", " ")
+            .replace("-", " ")
+        )
+        normalized = re.sub(
+            r"\s+",
+            " ",
+            normalized,
+        ).strip()
+
+        aliases = {
+            "united states": "US",
+            "united states of america": "US",
+            "usa": "US",
+            "us": "US",
+            "united kingdom": "GB",
+            "great britain": "GB",
+            "uk": "GB",
+            "gb": "GB",
+            "germany": "DE",
+            "france": "FR",
+            "spain": "ES",
+            "italy": "IT",
+            "poland": "PL",
+            "australia": "AU",
+            "canada": "CA",
+            "mexico": "MX",
+            "brazil": "BR",
+            "turkey": "TR",
+            "uzbekistan": "UZ",
+        }
+
+        if normalized in aliases:
+            return aliases[normalized]
+
+        if len(cleaned) == 2 and cleaned.isalpha():
+            return cleaned.upper()
+
+        return cleaned
 
     @staticmethod
     def _clean(value: str) -> str:
