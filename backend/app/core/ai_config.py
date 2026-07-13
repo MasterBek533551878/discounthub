@@ -11,7 +11,7 @@ class AiSettings(BaseSettings):
     ai_assistant_result_limit: int = 8
     ai_assistant_provider_timeout_seconds: int = 12
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash-lite"
+    gemini_model: str = "gemini-3.1-flash-lite"
 
     model_config = SettingsConfigDict(
         env_file=str(BACKEND_ROOT / ".env"),
