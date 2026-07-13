@@ -53,9 +53,11 @@ class Settings(BaseSettings):
     awin_datafeed_api_key: str = ""
     awin_feed_list_url: str = ""
     awin_feed_list_endpoint_template: str = "https://productdata.awin.com/datafeed/list/apikey/{api_key}"
-    awin_feed_max_feeds: int = 40
-    awin_feed_max_items_per_feed: int = 80
-    awin_feed_min_discount_percent: int = 10
+    awin_feed_max_feeds: int = 60
+    awin_feed_max_feeds_per_advertiser: int = 5
+    awin_feed_max_items_per_feed: int = 500
+    awin_feed_max_scan_rows_per_feed: int = 25000
+    awin_feed_min_discount_percent: int = 1
 
     # Awin Offers API / My Offers. This is separate from product feeds:
     # it imports store-level promotions and voucher codes into /promotions.

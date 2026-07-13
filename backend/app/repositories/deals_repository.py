@@ -36,7 +36,7 @@ END
 # recalculating FX prices and discounts for every row on every request.
 SQL_CURRENT_PRICE_USD = "current_price_usd"
 SQL_DISCOUNT_PERCENT = "discount_percent"
-SQL_REAL_DISCOUNT_ONLY = "(old_price > current_price AND discount_percent >= 1)"
+SQL_REAL_DISCOUNT_ONLY = "(current_price > 0.01 AND old_price > current_price AND discount_percent >= 1 AND COALESCE(LOWER(TRIM(platform)), '') <> 'el corte ingles es')"
 SQL_PUBLIC_FRESH_DEAL_ONLY = (
     "("
     "updated_at IS NOT NULL AND ("
@@ -189,28 +189,47 @@ class DealsRepository:
         offset = max(page - 1, 0) * page_size
 
         with get_connection() as connection:
-            total_row = connection.execute(
-                f"""
-                {cte_sql}
-                SELECT COUNT(*) AS total
-                FROM ranked_deals
-                WHERE dedupe_rank = 1
-                """,
-                params,
-            ).fetchone()
+            # Build the expensive filtered/deduplicated set once. The old path
+            # evaluated the same window-function CTE twice: once for COUNT(*)
+            # and again for the requested page. COUNT(*) OVER() gives each page
+            # row the total without repeating the full catalogue scan.
             rows = connection.execute(
                 f"""
-                {cte_sql}
-                SELECT *
-                FROM ranked_deals
-                WHERE dedupe_rank = 1
+                {cte_sql},
+                unique_deals AS (
+                    SELECT *
+                    FROM ranked_deals
+                    WHERE dedupe_rank = 1
+                )
+                SELECT
+                    unique_deals.*,
+                    COUNT(*) OVER() AS _total_count
+                FROM unique_deals
                 {order_sql}
                 LIMIT ? OFFSET ?
                 """,
                 (*params, page_size, offset),
             ).fetchall()
 
-        total = int(total_row["total"] if total_row is not None else 0)
+            if rows:
+                total = int(rows[0]["_total_count"] or 0)
+            elif offset > 0:
+                # A request beyond the final page has no row from which to read
+                # the window count. Keep pagination semantics correct with a
+                # count-only fallback for this uncommon edge case.
+                total_row = connection.execute(
+                    f"""
+                    {cte_sql}
+                    SELECT COUNT(*) AS total
+                    FROM ranked_deals
+                    WHERE dedupe_rank = 1
+                    """,
+                    params,
+                ).fetchone()
+                total = int(total_row["total"] if total_row is not None else 0)
+            else:
+                total = 0
+
         return [self._row_to_deal(row) for row in rows], total
 
     def get_facets(
@@ -242,20 +261,59 @@ class DealsRepository:
             monetization_mode=monetization_mode,
         )
 
-        cte_sql = self._dedupe_cte_sql(where_sql)
-
         with get_connection() as connection:
-            # Materialize the filtered/deduped set once per facets request.
-            # Previously every facet (total/range/platform/category/currency/etc.)
-            # recalculated the same window-function CTE, which became noticeable
-            # after the Awin catalogue grew to 10k+ items.
+            # Facets need only a small subset of deal columns. Materializing the
+            # complete rows copied descriptions, image URLs, affiliate URLs, and
+            # other large text fields into a temporary table on every cold request.
+            # Keep the exact same filter and dedupe semantics, but rank and retain
+            # only the columns required by the facet calculations.
             connection.execute("DROP TABLE IF EXISTS temp_facet_deals")
             connection.execute(
                 f"""
                 CREATE TEMP TABLE temp_facet_deals AS
-                {cte_sql}
-                SELECT *
-                FROM ranked_deals
+                WITH filtered_facet_deals AS (
+                    SELECT
+                        id,
+                        platform,
+                        category,
+                        currency,
+                        monetization_mode,
+                        delivery_regions,
+                        ships_to,
+                        current_price_usd,
+                        discount_percent,
+                        deal_score,
+                        updated_at,
+                        {SQL_DEDUPE_KEY} AS dedupe_key
+                    FROM deals
+                    {where_sql}
+                ),
+                ranked_facet_deals AS (
+                    SELECT
+                        platform,
+                        category,
+                        currency,
+                        monetization_mode,
+                        delivery_regions,
+                        ships_to,
+                        current_price_usd,
+                        discount_percent,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY dedupe_key
+                            ORDER BY deal_score DESC, updated_at DESC, id ASC
+                        ) AS dedupe_rank
+                    FROM filtered_facet_deals
+                )
+                SELECT
+                    platform,
+                    category,
+                    currency,
+                    monetization_mode,
+                    delivery_regions,
+                    ships_to,
+                    current_price_usd,
+                    discount_percent
+                FROM ranked_facet_deals
                 WHERE dedupe_rank = 1
                 """,
                 params,

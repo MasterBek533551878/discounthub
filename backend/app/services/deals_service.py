@@ -67,8 +67,13 @@ class DealNotFoundError(Exception):
 class DealsService:
     def __init__(self, repository: DealsRepository | None = None) -> None:
         self._repository = repository or DealsRepository()
+        self._deals_cache: dict[str, tuple[datetime, list[DealResponse], int]] = {}
+        self._deals_cache_ttl_seconds = 60
+        self._deals_cache_max_entries = 256
         self._facets_cache: dict[str, tuple[datetime, DealsFacetsResponse]] = {}
-        self._facets_cache_ttl_seconds = 45
+        self._facets_source_cache: dict[str, tuple[datetime, dict[str, object]]] = {}
+        self._facets_cache_ttl_seconds = 180
+        self._facets_cache_max_entries = 64
 
     def list_deals(
         self,
@@ -92,6 +97,31 @@ class DealsService:
         normalized_category = self._normalize_category_filter(category)
         max_price_usd = self._convert_amount(max_price, currency, "USD") if max_price is not None else None
 
+        cache_key = self._facets_cache_key(
+            q=q,
+            platform=platform,
+            category=normalized_category,
+            ships_to=ships_to,
+            delivery_region=delivery_region,
+            currency=currency.upper().strip() or "USD",
+            min_discount=min_discount,
+            min_rating=min_rating,
+            max_price_usd=max_price_usd,
+            free_shipping=free_shipping,
+            verified=verified,
+            monetization_mode=monetization_mode,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+        )
+        now = datetime.now(timezone.utc)
+        cached = self._deals_cache.get(cache_key)
+        if cached is not None:
+            cached_at, cached_items, cached_total = cached
+            if (now - cached_at).total_seconds() <= self._deals_cache_ttl_seconds:
+                return list(cached_items), cached_total
+            self._deals_cache.pop(cache_key, None)
+
         deals, total = self._repository.query_deals(
             q=q,
             platform=platform,
@@ -109,7 +139,15 @@ class DealsService:
             page_size=page_size,
         )
 
-        return [self._to_response(deal, currency) for deal in deals], total
+        items = [self._to_response(deal, currency) for deal in deals]
+        self._deals_cache[cache_key] = (now, items, total)
+        if len(self._deals_cache) > self._deals_cache_max_entries:
+            oldest_key = min(
+                self._deals_cache,
+                key=lambda key: self._deals_cache[key][0],
+            )
+            self._deals_cache.pop(oldest_key, None)
+        return list(items), total
 
     def get_facets(
         self,
@@ -152,7 +190,11 @@ class DealsService:
             if (now - cached_at).total_seconds() <= self._facets_cache_ttl_seconds:
                 return cached_response
 
-        raw = self._repository.get_facets(
+        # The database facet set is currency-independent: only the returned
+        # min/max prices are converted for the requested display currency. Share
+        # one raw facet calculation across USD/GBP/EUR/etc. instead of rebuilding
+        # the same deduplicated catalogue for every currency cache key.
+        source_cache_key = self._facets_cache_key(
             q=q,
             platform=platform,
             category=normalized_category,
@@ -165,6 +207,32 @@ class DealsService:
             verified=verified,
             monetization_mode=monetization_mode,
         )
+        source_cached = self._facets_source_cache.get(source_cache_key)
+        raw: dict[str, object]
+        if source_cached is not None:
+            source_cached_at, source_raw = source_cached
+            if (now - source_cached_at).total_seconds() <= self._facets_cache_ttl_seconds:
+                raw = source_raw
+            else:
+                self._facets_source_cache.pop(source_cache_key, None)
+                source_cached = None
+
+        if source_cached is None:
+            raw = self._repository.get_facets(
+                q=q,
+                platform=platform,
+                category=normalized_category,
+                ships_to=ships_to,
+                delivery_region=delivery_region,
+                min_discount=min_discount,
+                min_rating=min_rating,
+                max_price_usd=max_price_usd,
+                free_shipping=free_shipping,
+                verified=verified,
+                monetization_mode=monetization_mode,
+            )
+            self._facets_source_cache[source_cache_key] = (now, raw)
+            self._trim_cache(self._facets_source_cache, self._facets_cache_max_entries)
 
         min_price_usd = raw["min_price_usd"]
         max_price_usd_value = raw["max_price_usd"]
@@ -199,12 +267,7 @@ class DealsService:
             generated_at=now,
         )
         self._facets_cache[cache_key] = (now, response)
-        if len(self._facets_cache) > 64:
-            oldest_key = min(
-                self._facets_cache,
-                key=lambda key: self._facets_cache[key][0],
-            )
-            self._facets_cache.pop(oldest_key, None)
+        self._trim_cache(self._facets_cache, self._facets_cache_max_entries)
         return response
 
     def get_deal(self, deal_id: str, *, currency: str = "USD") -> DealResponse:
@@ -216,11 +279,13 @@ class DealsService:
     def upsert_deal(self, payload: DealUpsertRequest, *, currency: str = "USD") -> DealResponse:
         deal = self._request_to_deal(payload)
         self._repository.upsert_deal(deal)
+        self._clear_public_caches()
         return self._to_response(deal, currency)
 
     def upsert_deals(self, payloads: list[DealUpsertRequest]) -> int:
         deals = [self._request_to_deal(payload) for payload in payloads]
         self._repository.upsert_many(deals)
+        self._clear_public_caches()
         return len(deals)
 
     def export_deals(self) -> list[DealUpsertRequest]:
@@ -233,6 +298,7 @@ class DealsService:
             self._repository.delete_all()
         deals = [self._request_to_deal(payload) for payload in payloads]
         self._repository.upsert_many(deals)
+        self._clear_public_caches()
         return len(deals)
 
     def import_provider_deals(
@@ -251,20 +317,28 @@ class DealsService:
             # Awin, promotions-adjacent, or direct-source deals during its sync.
             self._repository.delete_provider_deals(provider_id=provider)
         self._repository.upsert_many(deals)
+        self._clear_public_caches()
         return len(deals)
 
     def delete_deal(self, deal_id: str) -> bool:
-        return self._repository.delete_deal(deal_id)
+        deleted = self._repository.delete_deal(deal_id)
+        if deleted:
+            self._clear_public_caches()
+        return deleted
 
     def delete_stale_provider_deals(self, *, provider_id: str, older_than: datetime) -> int:
-        return self._repository.delete_stale_provider_deals(
+        deleted = self._repository.delete_stale_provider_deals(
             provider_id=provider_id,
             older_than=older_than,
         )
+        if deleted:
+            self._clear_public_caches()
+        return deleted
 
     def reset_demo_deals(self) -> int:
         self._repository.delete_all()
         self._repository.upsert_many(MOCK_DEALS)
+        self._clear_public_caches()
         return self._repository.count_deals()
 
     def get_categories(self) -> list[str]:
@@ -275,6 +349,16 @@ class DealsService:
 
     def count_deals(self) -> int:
         return self._repository.count_deals()
+
+    def _clear_public_caches(self) -> None:
+        self._deals_cache.clear()
+        self._facets_cache.clear()
+        self._facets_source_cache.clear()
+
+    def _trim_cache(self, cache: dict[str, tuple], max_entries: int) -> None:
+        while len(cache) > max_entries:
+            oldest_key = min(cache, key=lambda key: cache[key][0])
+            cache.pop(oldest_key, None)
 
     def _normalize_category_filter(self, category: str | None) -> str | None:
         if not category:

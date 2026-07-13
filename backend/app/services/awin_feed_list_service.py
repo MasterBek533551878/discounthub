@@ -3,7 +3,9 @@ from __future__ import annotations
 import csv
 import gzip
 import io
+import itertools
 import json
+import logging
 import re
 import urllib.error
 import urllib.parse
@@ -17,14 +19,20 @@ from app.core.config import get_settings
 from app.services.restricted_offer_filter import restricted_offer_match_for_mapping
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class AwinFeedListOptions:
     max_feeds: int
+    max_feeds_per_advertiser: int
     max_items_per_feed: int
+    max_scan_rows_per_feed: int
     min_discount_percent: int
     joined_only: bool
     advertiser_id: str = ""
     advertiser_name: str = ""
+    excluded_advertiser_ids: tuple[str, ...] = ()
 
 
 class AwinFeedListService:
@@ -99,6 +107,11 @@ class AwinFeedListService:
         ("28737", "44290852484"),
         ("28737", "44237432484"),
     }
+    _BLOCKED_TITLE_PREFIXES_BY_ADVERTISER: dict[str, tuple[str, ...]] = {
+        # TTfone Return/Returned Resale listings can be valid discounted
+        # products. Only individually confirmed broken product IDs are blocked.
+        "28737": (),
+    }
 
     def search_from_provider_url(self, provider_url: str, *, timeout_seconds: int = 20) -> list[dict[str, Any]]:
         options = self._parse_options(provider_url)
@@ -116,30 +129,24 @@ class AwinFeedListService:
                 ),
             )
 
-        all_items: list[dict[str, Any]] = []
-        failures: list[str] = []
+        all_items_by_key: dict[str, dict[str, Any]] = {}
+        diagnostics: list[str] = []
         for index, feed_row in enumerate(selected_feeds, start=1):
             feed_url = self._prepare_feed_download_url(feed_row.feed_url)
             try:
-                product_body, product_content_type = self._fetch_product_sample_text(
+                product_items, stats = self._fetch_filtered_product_items(
                     feed_url,
                     timeout_seconds=timeout_seconds,
                     max_items=options.max_items_per_feed,
-                )
-                product_items = self._extract_items_from_body(
-                    product_body,
-                    feed_url=feed_url,
-                    content_type=product_content_type,
-                )[: options.max_items_per_feed]
-                product_items, stats = self._filter_product_items_with_stats(
-                    product_items,
+                    max_scan_rows=options.max_scan_rows_per_feed,
                     min_discount_percent=options.min_discount_percent,
                 )
+                diagnostics.append(self._format_filter_stats(feed_row, stats))
                 if not product_items:
-                    failures.append(self._format_filter_stats(feed_row, stats))
                     continue
-                kept_products: list[dict[str, Any]] = []
+
                 blocked_count = 0
+                duplicate_count = 0
                 for product in product_items:
                     product.setdefault("_awin_feed_index", index)
                     product.setdefault("_awin_feed_name", feed_row.feed_name)
@@ -150,26 +157,38 @@ class AwinFeedListService:
                     if self._is_blocked_awin_product(product):
                         blocked_count += 1
                         continue
-                    kept_products.append(product)
+
+                    product_key = self._product_dedupe_key(product)
+                    if product_key in all_items_by_key:
+                        duplicate_count += 1
+                        continue
+                    all_items_by_key[product_key] = product
 
                 if blocked_count:
-                    failures.append(f"{feed_row.display_name}: blocked_known_bad_products={blocked_count}")
-                all_items.extend(kept_products)
+                    diagnostics.append(f"{feed_row.display_name}: blocked_known_bad_products={blocked_count}")
+                if duplicate_count:
+                    diagnostics.append(f"{feed_row.display_name}: duplicate_products={duplicate_count}")
             except HTTPException as exc:
-                failures.append(f"{feed_row.display_name}: {exc.detail}")
+                diagnostics.append(f"{feed_row.display_name}: fetch_error={exc.detail}")
             except Exception as exc:  # pragma: no cover - defensive safety around external feeds.
-                failures.append(f"{feed_row.display_name}: {exc}")
+                diagnostics.append(f"{feed_row.display_name}: unexpected_error={exc}")
+
+        all_items = list(all_items_by_key.values())
+        if diagnostics:
+            logger.info("Awin product-feed diagnostics: %s", " | ".join(diagnostics))
 
         if not all_items:
-            selected_names = ", ".join(feed.display_name for feed in selected_feeds[:5])
+            selected_names = ", ".join(feed.display_name for feed in selected_feeds[:8])
             message = (
-                f"Awin feed list was reachable and {len(selected_feeds)} feed(s) were selected, "
-                "but no product rows passed DiscountHub discount rules."
+                f"Awin feed list was reachable and {len(selected_feeds)} feed(s) were checked, "
+                "but no rows could be confirmed as discounted products. "
+                "This does not mean the merchants have no products; it means the checked feed rows "
+                "did not provide a usable old/current price pair or failed another import rule."
             )
             if selected_names:
-                message += f" Selected feeds: {selected_names}."
-            if failures:
-                message += " Diagnostics: " + "; ".join(failures[:6])
+                message += f" Checked feeds: {selected_names}."
+            if diagnostics:
+                message += " Diagnostics: " + "; ".join(diagnostics[:10])
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
         return all_items
@@ -180,11 +199,21 @@ class AwinFeedListService:
         query = urllib.parse.parse_qs(parsed.query)
 
         return AwinFeedListOptions(
-            max_feeds=self._bounded_int(query.get("max_feeds", [settings.awin_feed_max_feeds])[0], minimum=1, maximum=50),
+            max_feeds=self._bounded_int(query.get("max_feeds", [settings.awin_feed_max_feeds])[0], minimum=1, maximum=200),
+            max_feeds_per_advertiser=self._bounded_int(
+                query.get("max_feeds_per_advertiser", [settings.awin_feed_max_feeds_per_advertiser])[0],
+                minimum=1,
+                maximum=20,
+            ),
             max_items_per_feed=self._bounded_int(
                 query.get("max_items_per_feed", [settings.awin_feed_max_items_per_feed])[0],
                 minimum=1,
-                maximum=1000,
+                maximum=2000,
+            ),
+            max_scan_rows_per_feed=self._bounded_int(
+                query.get("max_scan_rows_per_feed", query.get("max_scan_rows", [settings.awin_feed_max_scan_rows_per_feed]))[0],
+                minimum=100,
+                maximum=250000,
             ),
             min_discount_percent=self._bounded_int(
                 query.get("min_discount_percent", query.get("min_discount", [settings.awin_feed_min_discount_percent]))[0],
@@ -194,7 +223,22 @@ class AwinFeedListService:
             joined_only=self._bool_value(query.get("joined_only", ["true"])[0], default=True),
             advertiser_id=self._clean_query_value(query.get("advertiser_id", query.get("merchant_id", [""]))[0]),
             advertiser_name=self._clean_query_value(query.get("advertiser_name", query.get("merchant_name", [""]))[0]),
+            excluded_advertiser_ids=self._parse_query_values(
+                query.get("exclude_advertiser_ids", query.get("excluded_advertiser_ids", []))
+            ),
         )
+
+    def _parse_query_values(self, values: list[str]) -> tuple[str, ...]:
+        parsed: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            for part in re.split(r"[,;\s]+", str(value or "")):
+                cleaned = part.strip().lower()
+                if not cleaned or cleaned in seen:
+                    continue
+                seen.add(cleaned)
+                parsed.append(cleaned)
+        return tuple(parsed)
 
     def _clean_query_value(self, value: object) -> str:
         return str(value or "").strip()
@@ -235,9 +279,12 @@ class AwinFeedListService:
             advertiser_name = self._pick_string(row, *self._ADVERTISER_KEYS) or "Awin advertiser"
             advertiser_id = self._pick_string(row, *self._ADVERTISER_ID_KEYS) or ""
 
-            if options.advertiser_id and advertiser_id.strip().lower() != options.advertiser_id.strip().lower():
+            normalized_advertiser_id = advertiser_id.strip().lower()
+            if options.advertiser_id and normalized_advertiser_id != options.advertiser_id.strip().lower():
                 continue
             if options.advertiser_name and options.advertiser_name.strip().lower() not in advertiser_name.strip().lower():
+                continue
+            if normalized_advertiser_id and normalized_advertiser_id in options.excluded_advertiser_ids:
                 continue
 
             seen_urls.add(raw_url)
@@ -253,35 +300,38 @@ class AwinFeedListService:
             )
 
         if options.advertiser_id or options.advertiser_name:
-            # Targeted providers intentionally need several feeds from one merchant
-            # (for example TTfone/Myprotein). Preserve the upstream order for them.
+            # Targeted providers intentionally inspect several feeds from one
+            # merchant. Preserve Awin order and let max_feeds define the limit.
             return candidates[: options.max_feeds]
 
-        # The general joined-advertisers provider must not let one merchant with
-        # many category feeds consume the whole safety budget. First select one
-        # feed per advertiser, then use the remaining slots in original Awin order.
-        # This keeps broad partner coverage while still allowing large merchants
-        # such as AliExpress to contribute additional category feeds.
-        selected: list[_AwinFeedRow] = []
-        selected_urls: set[str] = set()
-        seen_advertisers: set[str] = set()
-
+        # General provider: select feeds in advertiser round-robin order. The old
+        # implementation selected one feed per merchant first and then filled the
+        # remaining slots in raw Awin order. That still allowed one large merchant
+        # to consume most spare slots and could leave TTfone/other stores stuck on
+        # a non-productive first feed. Round-robin gives each advertiser feed #1,
+        # then each advertiser feed #2, and so on up to the configured per-store cap.
+        groups: dict[str, list[_AwinFeedRow]] = {}
+        advertiser_order: list[str] = []
         for feed in candidates:
             advertiser_key = self._advertiser_key(feed)
-            if advertiser_key in seen_advertisers:
-                continue
-            seen_advertisers.add(advertiser_key)
-            selected.append(feed)
-            selected_urls.add(feed.feed_url)
-            if len(selected) >= options.max_feeds:
-                return selected
+            if advertiser_key not in groups:
+                groups[advertiser_key] = []
+                advertiser_order.append(advertiser_key)
+            if len(groups[advertiser_key]) < options.max_feeds_per_advertiser:
+                groups[advertiser_key].append(feed)
 
-        for feed in candidates:
-            if feed.feed_url in selected_urls:
-                continue
-            selected.append(feed)
-            selected_urls.add(feed.feed_url)
-            if len(selected) >= options.max_feeds:
+        selected: list[_AwinFeedRow] = []
+        for feed_index in range(options.max_feeds_per_advertiser):
+            added_in_round = False
+            for advertiser_key in advertiser_order:
+                advertiser_feeds = groups[advertiser_key]
+                if feed_index >= len(advertiser_feeds):
+                    continue
+                selected.append(advertiser_feeds[feed_index])
+                added_in_round = True
+                if len(selected) >= options.max_feeds:
+                    return selected
+            if not added_in_round:
                 break
 
         return selected
@@ -337,11 +387,74 @@ class AwinFeedListService:
         return resolved
 
     def _is_blocked_awin_product(self, item: dict[str, Any]) -> bool:
-        advertiser_id = self._pick_string(item, "_awin_advertiser_id", "advertiser_id", "merchant_id", "programme_id", "program_id")
+        advertiser_id = self._pick_string(
+            item,
+            "_awin_advertiser_id",
+            "advertiser_id",
+            "merchant_id",
+            "programme_id",
+            "program_id",
+        )
+        normalized_advertiser_id = str(advertiser_id or "").strip()
+
+        title = self._pick_string(
+            item,
+            "product_name",
+            "productName",
+            "productname",
+            "aw_product_name",
+            "name",
+            "title",
+        )
+        normalized_title = re.sub(r"[^a-z0-9]+", " ", str(title or "").lower()).strip()
+        for prefix in self._BLOCKED_TITLE_PREFIXES_BY_ADVERTISER.get(normalized_advertiser_id, ()):
+            if normalized_title.startswith(prefix):
+                return True
+
         product_id = self._pick_string(item, "aw_product_id", "merchant_product_id", "product_id", "sku", "id")
-        if not advertiser_id or not product_id:
+        if not normalized_advertiser_id or not product_id:
             return False
-        return (advertiser_id.strip(), product_id.strip()) in self._BLOCKED_AWIN_PRODUCTS
+        return (normalized_advertiser_id, product_id.strip()) in self._BLOCKED_AWIN_PRODUCTS
+
+    def _product_dedupe_key(self, item: dict[str, Any]) -> str:
+        advertiser_id = self._pick_string(
+            item,
+            "_awin_advertiser_id",
+            "advertiser_id",
+            "merchant_id",
+            "programme_id",
+            "program_id",
+        ) or ""
+        product_id = self._pick_string(
+            item,
+            "aw_product_id",
+            "merchant_product_id",
+            "product_id",
+            "sku",
+            "id",
+        ) or ""
+        if advertiser_id and product_id:
+            return f"product:{advertiser_id.strip().lower()}:{product_id.strip().lower()}"
+
+        product_url = self._pick_string(
+            item,
+            "merchant_product_url",
+            "merchant_deep_link",
+            "product_url",
+            "productUrl",
+            "product_link",
+            "link",
+            "url",
+        )
+        if product_url:
+            parsed = urllib.parse.urlsplit(product_url.strip())
+            canonical_url = urllib.parse.urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path.rstrip("/"), parsed.query, ""))
+            return f"url:{canonical_url}"
+
+        title = self._pick_string(item, "product_name", "productName", "productname", "aw_product_name", "name", "title") or ""
+        image = self._pick_string(item, "merchant_image_url", "aw_image_url", "image_url", "image_link", "image") or ""
+        current, old = self._awin_price_pair(item)
+        return f"fallback:{advertiser_id.lower()}:{title.lower()}:{image}:{current}:{old}"
 
     def _filter_product_items(self, items: list[dict[str, Any]], *, min_discount_percent: int) -> list[dict[str, Any]]:
         filtered, _stats = self._filter_product_items_with_stats(items, min_discount_percent=min_discount_percent)
@@ -354,8 +467,19 @@ class AwinFeedListService:
         min_discount_percent: int,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         filtered: list[dict[str, Any]] = []
-        stats: dict[str, Any] = {
-            "rows": len(items),
+        stats = self._new_filter_stats()
+        for item in items:
+            if self._product_item_passes_rules(
+                item,
+                min_discount_percent=min_discount_percent,
+                stats=stats,
+            ):
+                filtered.append(item)
+        return filtered, stats
+
+    def _new_filter_stats(self) -> dict[str, Any]:
+        return {
+            "rows": 0,
             "missing_title": 0,
             "missing_link": 0,
             "missing_image": 0,
@@ -365,112 +489,125 @@ class AwinFeedListService:
             "below_min_discount": 0,
             "restricted_offer": 0,
             "passed": 0,
-            "headers": sorted({str(key) for item in items[:3] for key in item.keys()})[:40],
+            "headers": [],
         }
-        for item in items:
-            title = self._pick_string(item, "product_name", "productName", "productname", "aw_product_name", "name", "title")
-            link = self._pick_string(
-                item,
-                "aw_deep_link",
-                "deep_link",
-                "deepLink",
-                "deeplink",
-                "affiliate_url",
-                "tracking_url",
-                "tracking_link",
-                "merchant_deep_link",
+
+    def _product_item_passes_rules(
+        self,
+        item: dict[str, Any],
+        *,
+        min_discount_percent: int,
+        stats: dict[str, Any],
+    ) -> bool:
+        stats["rows"] = int(stats.get("rows", 0)) + 1
+        if stats["rows"] <= 3:
+            headers = {str(value) for value in stats.get("headers", [])}
+            headers.update(str(key) for key in item.keys())
+            stats["headers"] = sorted(headers)[:40]
+
+        title = self._pick_string(item, "product_name", "productName", "productname", "aw_product_name", "name", "title")
+        link = self._pick_string(
+            item,
+            "aw_deep_link",
+            "deep_link",
+            "deepLink",
+            "deeplink",
+            "affiliate_url",
+            "tracking_url",
+            "tracking_link",
+            "merchant_deep_link",
+            "merchant_product_url",
+            "product_url",
+            "productUrl",
+            "product_link",
+            "click_url",
+            "clickout_url",
+            "link",
+            "url",
+        )
+        image = self._pick_string(
+            item,
+            "merchant_image_url",
+            "aw_image_url",
+            "aw_thumb_url",
+            "large_image",
+            "image_url",
+            "image_link",
+            "imageUrl",
+            "thumbnail",
+            "thumbnail_url",
+            "merchant_thumb_url",
+            "picture",
+            "image",
+        )
+        current, old = self._awin_price_pair(item)
+
+        if not title:
+            stats["missing_title"] += 1
+            return False
+        if not link:
+            stats["missing_link"] += 1
+            return False
+        if not image:
+            stats["missing_image"] += 1
+            return False
+        if not current or current <= 0:
+            stats["missing_current_price"] += 1
+            return False
+        if self._is_out_of_stock(item):
+            stats["out_of_stock"] += 1
+            return False
+
+        if restricted_offer_match_for_mapping(
+            item,
+            keys=(
+                "product_name",
+                "productName",
+                "productname",
+                "aw_product_name",
+                "name",
+                "title",
+                "description",
+                "product_description",
+                "product_short_description",
+                "short_description",
+                "merchant_product_description",
+                "category_name",
+                "merchant_category",
+                "product_category",
+                "category",
+                "product_type",
                 "merchant_product_url",
+                "merchant_deep_link",
                 "product_url",
                 "productUrl",
-                "product_link",
-                "click_url",
-                "clickout_url",
-                "link",
                 "url",
-            )
-            image = self._pick_string(
-                item,
-                "merchant_image_url",
-                "aw_image_url",
-                "aw_thumb_url",
-                "large_image",
-                "image_url",
-                "image_link",
-                "imageUrl",
-                "thumbnail",
-                "thumbnail_url",
-                "merchant_thumb_url",
-                "picture",
-                "image",
-            )
-            current, old = self._awin_price_pair(item)
+                "link",
+            ),
+        ):
+            stats["restricted_offer"] += 1
+            return False
 
-            if not title:
-                stats["missing_title"] += 1
-                continue
-            if not link:
-                stats["missing_link"] += 1
-                continue
-            if not image:
-                stats["missing_image"] += 1
-                continue
-            if not current or current <= 0:
-                stats["missing_current_price"] += 1
-                continue
-            if self._is_out_of_stock(item):
-                stats["out_of_stock"] += 1
-                continue
+        # DiscountHub must show real discounts only. Awin feeds may contain a
+        # full product catalogue, so import only rows with a provable old/current
+        # price pair. A reachable product page alone is not proof of a discount.
+        if not old or old <= current:
+            stats["no_discount_price_pair"] += 1
+            return False
+        discount = ((old - current) / old) * 100
+        if discount <= 0 or discount < min_discount_percent:
+            stats["below_min_discount"] += 1
+            return False
 
-            if restricted_offer_match_for_mapping(
-                item,
-                keys=(
-                    "product_name",
-                    "productName",
-                    "productname",
-                    "aw_product_name",
-                    "name",
-                    "title",
-                    "description",
-                    "product_description",
-                    "product_short_description",
-                    "short_description",
-                    "merchant_product_description",
-                    "category_name",
-                    "merchant_category",
-                    "product_category",
-                    "category",
-                    "product_type",
-                    "merchant_product_url",
-                    "merchant_deep_link",
-                    "product_url",
-                    "productUrl",
-                    "url",
-                    "link",
-                ),
-            ):
-                stats["restricted_offer"] += 1
-                continue
-
-            # DiscountHub must show real discounts only. Awin feeds may contain a
-            # full product catalogue, so we only import rows where the feed gives
-            # enough pricing data to prove that current price is lower than old/RRP/list price.
-            if not old or old <= current:
-                stats["no_discount_price_pair"] += 1
-                continue
-            discount = round(((old - current) / old) * 100)
-            if discount <= 0 or discount < min_discount_percent:
-                stats["below_min_discount"] += 1
-                continue
-
-            filtered.append(item)
-            stats["passed"] += 1
-        return filtered, stats
+        stats["passed"] += 1
+        return True
 
     def _format_filter_stats(self, feed_row: "_AwinFeedRow", stats: dict[str, Any]) -> str:
         headers = stats.get("headers") or []
         headers_text = ", ".join(str(value) for value in headers[:18])
         return (
             f"{feed_row.display_name}: rows={stats.get('rows', 0)}, passed={stats.get('passed', 0)}, "
+            f"returned={stats.get('returned', stats.get('passed', 0))}, "
             f"missing_title={stats.get('missing_title', 0)}, missing_link={stats.get('missing_link', 0)}, "
             f"missing_image={stats.get('missing_image', 0)}, missing_current_price={stats.get('missing_current_price', 0)}, "
             f"no_discount_price_pair={stats.get('no_discount_price_pair', 0)}, "
@@ -492,9 +629,18 @@ class AwinFeedListService:
             "discount_price",
             "discounted_price",
             "offer_price",
+            "special_price",
+            "promo_price",
+            "promotional_price",
+            "final_price",
+            "reduced_price",
+            "price_sale",
+            "saleprice_value",
             "now_price",
             "current_price",
             "currentprice",
+            "price_current",
+            "merchant_product_price",
         )
         listed_price = self._pick_number(
             item,
@@ -502,6 +648,8 @@ class AwinFeedListService:
             "search_price",
             "store_price",
             "price",
+            "base_price",
+            "full_price",
             "normal_price",
             "normalprice",
             "amount",
@@ -530,6 +678,13 @@ class AwinFeedListService:
             "before_price",
             "strikethrough_price",
             "compare_at_price",
+            "compare_price",
+            "msrp",
+            "recommended_retail_price",
+            "merchant_product_price_old",
+            "product_price_rrp",
+            "price_old",
+            "price_was",
         )
         saving_amount = self._pick_number(
             item,
@@ -583,25 +738,6 @@ class AwinFeedListService:
         return None
 
     def _is_out_of_stock(self, item: dict[str, Any]) -> bool:
-        stock_text = " ".join(
-            str(self._pick_string(item, key) or "").strip().lower()
-            for key in (
-                "in_stock",
-                "instock",
-                "stock",
-                "stock_status",
-                "availability",
-                "availability_status",
-                "g_availability",
-                "g:availability",
-                "is_available",
-                "available",
-            )
-            if self._pick_string(item, key) not in (None, "")
-        )
-        if not stock_text:
-            return False
-
         bad_markers = (
             "out of stock",
             "out_of_stock",
@@ -614,11 +750,34 @@ class AwinFeedListService:
             "ended",
             "expired",
         )
-        if any(marker in stock_text for marker in bad_markers):
-            return True
+        boolean_keys = ("in_stock", "instock", "is_available", "available")
+        status_keys = ("stock_status", "availability", "availability_status", "g_availability", "g:availability", "stock")
+        quantity_keys = ("stock_quantity", "inventory_quantity", "quantity", "qty")
 
-        negative_exact = {"0", "0.0", "false", "no", "n", "off"}
-        return stock_text in negative_exact
+        for key in boolean_keys:
+            value = self._pick_string(item, key)
+            if value is None:
+                continue
+            text = value.strip().lower()
+            if text in {"0", "0.0", "false", "no", "n", "off"}:
+                return True
+            if any(marker in text for marker in bad_markers):
+                return True
+
+        for key in status_keys:
+            value = self._pick_string(item, key)
+            if value is None:
+                continue
+            text = value.strip().lower()
+            if any(marker in text for marker in bad_markers):
+                return True
+
+        for key in quantity_keys:
+            value = self._pick_number(item, key)
+            if value is not None and value <= 0:
+                return True
+
+        return False
 
     def _fetch_text(self, feed_url: str, *, timeout_seconds: int) -> tuple[str, str]:
         try:
@@ -648,64 +807,159 @@ class AwinFeedListService:
 
         return raw_bytes.decode(charset, errors="replace"), content_type.lower()
 
-    def _fetch_product_sample_text(self, feed_url: str, *, timeout_seconds: int, max_items: int) -> tuple[str, str]:
-        # Product feeds can be huge. For the first production-safe integration we
-        # only stream the header + N product rows per advertiser.
+    def _fetch_filtered_product_items(
+        self,
+        feed_url: str,
+        *,
+        timeout_seconds: int,
+        max_items: int,
+        max_scan_rows: int,
+        min_discount_percent: int,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Scan deeply enough to find deals instead of judging only the first rows.
+
+        Awin feeds are often ordered by category, SKU, or creation date. Reading only
+        the first ``max_items`` physical rows caused valid stores to appear empty when
+        their discounted products were later in the same feed. This method scans up to
+        ``max_scan_rows`` rows and returns at most ``max_items`` confirmed discounts.
+        """
         try:
             request = urllib.request.Request(
                 feed_url,
                 headers={
                     "Accept": "text/csv,text/tab-separated-values,application/json,*/*",
-                    "User-Agent": "DiscountHub-Awin-Importer/0.1",
+                    "User-Agent": "DiscountHub-Awin-Importer/0.2",
                 },
             )
             with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-                content_type = response.headers.get("content-type", "") or ""
+                content_type = (response.headers.get("content-type", "") or "").lower()
                 content_encoding = (response.headers.get("content-encoding", "") or "").lower()
                 charset = response.headers.get_content_charset() or "utf-8"
                 path = feed_url.lower().split("?")[0]
 
-                is_gzip = content_encoding == "gzip" or path.endswith(".gz")
+                raw_stream: Any = response
+                is_gzip = "gzip" in content_encoding or path.endswith(".gz")
+                if not is_gzip and hasattr(response, "peek"):
+                    try:
+                        is_gzip = response.peek(2).startswith(b"\x1f\x8b")
+                    except (AttributeError, OSError):
+                        is_gzip = False
                 if is_gzip:
-                    stream = gzip.GzipFile(fileobj=response)
-                    text_stream = io.TextIOWrapper(stream, encoding=charset, errors="replace", newline="")
-                    return self._read_limited_delimited_text(text_stream, max_items=max_items), content_type.lower()
+                    raw_stream = gzip.GzipFile(fileobj=response)
 
-                raw_prefix = response.peek(2) if hasattr(response, "peek") else b""
-                if raw_prefix.startswith(b"\x1f\x8b"):
-                    stream = gzip.GzipFile(fileobj=response)
-                    text_stream = io.TextIOWrapper(stream, encoding=charset, errors="replace", newline="")
-                    return self._read_limited_delimited_text(text_stream, max_items=max_items), content_type.lower()
-
-                # JSON feeds cannot be safely truncated, but Awin product feeds
-                # are normally delimited files. Cap JSON-ish downloads to 10 MB.
-                if "json" in content_type or path.endswith(".json"):
-                    raw_body = response.read(10 * 1024 * 1024 + 1)
-                    if len(raw_body) > 10 * 1024 * 1024:
+                is_json = "json" in content_type or path.endswith(".json") or path.endswith(".json.gz")
+                if is_json:
+                    raw_body = raw_stream.read(25 * 1024 * 1024 + 1)
+                    if len(raw_body) > 25 * 1024 * 1024:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Awin JSON product feed is larger than the 10 MB safety cap.",
+                            detail="Awin JSON product feed is larger than the 25 MB safety cap.",
                         )
-                    return raw_body.decode(charset, errors="replace"), content_type.lower()
+                    items = self._extract_items_from_body(
+                        raw_body.decode(charset, errors="replace"),
+                        feed_url=feed_url,
+                        content_type=content_type,
+                    )[:max_scan_rows]
+                else:
+                    text_stream = io.TextIOWrapper(raw_stream, encoding=charset, errors="replace", newline="")
+                    return self._extract_filtered_delimited_stream(
+                        text_stream,
+                        feed_url=feed_url,
+                        content_type=content_type,
+                        max_items=max_items,
+                        max_scan_rows=max_scan_rows,
+                        min_discount_percent=min_discount_percent,
+                    )
 
-                text_stream = io.TextIOWrapper(response, encoding=charset, errors="replace", newline="")
-                return self._read_limited_delimited_text(text_stream, max_items=max_items), content_type.lower()
-        except urllib.error.URLError as exc:
+        except HTTPException:
+            raise
+        except (urllib.error.URLError, OSError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Could not fetch Awin product feed: {exc}",
             ) from exc
 
-    def _read_limited_delimited_text(self, stream: io.TextIOBase, *, max_items: int) -> str:
-        # Header + max_items rows. If a feed has quoted newlines, csv will still
-        # be able to parse the sample in most cases because TextIOWrapper returns
-        # complete physical lines; Awin rows normally do not contain raw newlines.
-        lines: list[str] = []
-        for index, line in enumerate(stream):
-            lines.append(line)
-            if index >= max_items:
+        filtered, stats = self._filter_product_items_with_stats(
+            items,
+            min_discount_percent=min_discount_percent,
+        )
+        stats["scanned_rows"] = stats.get("rows", 0)
+        stats["scan_limit"] = max_scan_rows
+        stats["returned"] = min(len(filtered), max_items)
+        return filtered[:max_items], stats
+
+    def _extract_filtered_delimited_stream(
+        self,
+        stream: io.TextIOBase,
+        *,
+        feed_url: str,
+        content_type: str,
+        max_items: int,
+        max_scan_rows: int,
+        min_discount_percent: int,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        sample_lines: list[str] = []
+        for _ in range(25):
+            line = stream.readline()
+            if line == "":
                 break
-        return "".join(lines)
+            sample_lines.append(line)
+        if not sample_lines:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Awin product feed was empty.")
+
+        sample = "".join(sample_lines)
+        path = feed_url.lower().split("?")[0]
+        delimiter = "\t" if path.endswith((".tsv", ".tsv.gz")) or "tab-separated" in content_type else None
+        if delimiter is None:
+            try:
+                delimiter = csv.Sniffer().sniff(sample[:8192], delimiters=",;\t|").delimiter
+            except csv.Error:
+                delimiter = ","
+
+        reader = csv.DictReader(itertools.chain(sample_lines, stream), delimiter=delimiter)
+        if not reader.fieldnames:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Awin feed must have a header row.")
+
+        headers = [str(header or "").strip() for header in reader.fieldnames]
+        filtered: list[dict[str, Any]] = []
+        stats = self._new_filter_stats()
+        for row_index, row in enumerate(reader, start=1):
+            if row_index > max_scan_rows:
+                break
+            item = self._csv_row_to_item(row=row, headers=headers)
+            if not item:
+                continue
+            if self._product_item_passes_rules(
+                item,
+                min_discount_percent=min_discount_percent,
+                stats=stats,
+            ):
+                filtered.append(item)
+                if len(filtered) >= max_items:
+                    break
+
+        stats["scanned_rows"] = stats.get("rows", 0)
+        stats["scan_limit"] = max_scan_rows
+        stats["returned"] = len(filtered)
+        return filtered, stats
+
+    def _csv_row_to_item(self, *, row: dict[str, Any], headers: list[str]) -> dict[str, Any]:
+        item: dict[str, Any] = {}
+        for raw_key, value in row.items():
+            key = str(raw_key or "").strip()
+            if not key:
+                continue
+            item[key] = value.strip() if isinstance(value, str) else value
+
+        for header in headers:
+            if not header or header not in item:
+                continue
+            normalized_key = self._normalize_header(header)
+            item.setdefault(normalized_key, item[header])
+
+        if any(value not in (None, "") for value in item.values()):
+            return item
+        return {}
 
     def _extract_items_from_body(self, raw_body: str, *, feed_url: str, content_type: str) -> list[dict[str, Any]]:
         stripped = raw_body.lstrip("\ufeff\n\r\t ")
@@ -793,19 +1047,47 @@ class AwinFeedListService:
             value = self._pick_string(item, key)
             if value is None or value == "":
                 continue
-            match = re.search(r"[-+]?\d+(?:[\s,]\d{3})*(?:[.,]\d+)?|[-+]?\d+", value)
-            if not match:
-                continue
-            number = match.group(0).replace(" ", "")
-            if number.count(",") == 1 and number.count(".") == 0:
-                number = number.replace(",", ".")
-            else:
-                number = number.replace(",", "")
-            try:
-                return float(number)
-            except ValueError:
-                continue
+            parsed = self._parse_number_text(value)
+            if parsed is not None:
+                return parsed
         return None
+
+    def _parse_number_text(self, value: object) -> float | None:
+        if isinstance(value, int | float):
+            return float(value)
+        text = str(value or "").strip().replace("\u00a0", " ")
+        match = re.search(r"[-+]?\d[\d\s.,'’]*", text)
+        if not match:
+            return None
+        token = match.group(0).replace(" ", "").replace("'", "").replace("’", "")
+        sign = ""
+        if token[:1] in {"+", "-"}:
+            sign, token = token[0], token[1:]
+        if not token:
+            return None
+
+        if "," in token and "." in token:
+            decimal_separator = "," if token.rfind(",") > token.rfind(".") else "."
+            thousands_separator = "." if decimal_separator == "," else ","
+            token = token.replace(thousands_separator, "")
+            token = token.replace(decimal_separator, ".")
+        elif "," in token or "." in token:
+            separator = "," if "," in token else "."
+            parts = token.split(separator)
+            if len(parts) > 2:
+                last = parts[-1]
+                token = "".join(parts[:-1]) + ("." + last if 1 <= len(last) <= 2 else last)
+            else:
+                before, after = parts
+                if len(after) == 3 and before:
+                    token = before + after
+                else:
+                    token = before + "." + after
+
+        try:
+            return float(sign + token)
+        except ValueError:
+            return None
 
     def _bounded_int(self, value: Any, *, minimum: int, maximum: int) -> int:
         try:

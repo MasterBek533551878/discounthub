@@ -265,7 +265,7 @@ class FeedAdapterService:
             "category": category,
             "oldPrice": round(old, 2),
             "currentPrice": round(current, 2),
-            "currency": self._pick_currency(item) or "USD",
+            "currency": self._pick_currency(item) or self._infer_awin_currency(item),
             "productUrl": merchant_product_url,
             "affiliateUrl": deep_link,
             "rating": self._pick_number(item, "average_rating", "rating") or 0,
@@ -289,9 +289,18 @@ class FeedAdapterService:
             "discount_price",
             "discounted_price",
             "offer_price",
+            "special_price",
+            "promo_price",
+            "promotional_price",
+            "final_price",
+            "reduced_price",
+            "price_sale",
+            "saleprice_value",
             "now_price",
             "current_price",
             "currentprice",
+            "price_current",
+            "merchant_product_price",
         )
         listed_price = self._pick_number(
             item,
@@ -299,6 +308,8 @@ class FeedAdapterService:
             "search_price",
             "store_price",
             "price",
+            "base_price",
+            "full_price",
             "normal_price",
             "normalprice",
             "amount",
@@ -327,6 +338,13 @@ class FeedAdapterService:
             "before_price",
             "strikethrough_price",
             "compare_at_price",
+            "compare_price",
+            "msrp",
+            "recommended_retail_price",
+            "merchant_product_price_old",
+            "product_price_rrp",
+            "price_old",
+            "price_was",
         )
         saving_amount = self._pick_number(
             item,
@@ -801,30 +819,135 @@ class FeedAdapterService:
             value = item.get(key)
             if value is None or value == "":
                 continue
-            if isinstance(value, int | float):
-                return float(value)
-            text = str(value).strip()
-            match = re.search(r"[-+]?\d+(?:[\s,]\d{3})*(?:[.,]\d+)?|[-+]?\d+", text)
-            if not match:
-                continue
-            number = match.group(0).replace(" ", "")
-            # Convert common decimal comma to dot but keep thousand separators simple.
-            if number.count(",") == 1 and number.count(".") == 0:
-                number = number.replace(",", ".")
-            else:
-                number = number.replace(",", "")
-            try:
-                return float(number)
-            except ValueError:
-                continue
+            parsed = self._parse_number_text(value)
+            if parsed is not None:
+                return parsed
         return None
+
+    def _parse_number_text(self, value: object) -> float | None:
+        if isinstance(value, int | float):
+            return float(value)
+        text = str(value or "").strip().replace("\u00a0", " ")
+        match = re.search(r"[-+]?\d[\d\s.,'’]*", text)
+        if not match:
+            return None
+        token = match.group(0).replace(" ", "").replace("'", "").replace("’", "")
+        sign = ""
+        if token[:1] in {"+", "-"}:
+            sign, token = token[0], token[1:]
+        if not token:
+            return None
+
+        if "," in token and "." in token:
+            decimal_separator = "," if token.rfind(",") > token.rfind(".") else "."
+            thousands_separator = "." if decimal_separator == "," else ","
+            token = token.replace(thousands_separator, "")
+            token = token.replace(decimal_separator, ".")
+        elif "," in token or "." in token:
+            separator = "," if "," in token else "."
+            parts = token.split(separator)
+            if len(parts) > 2:
+                last = parts[-1]
+                token = "".join(parts[:-1]) + ("." + last if 1 <= len(last) <= 2 else last)
+            else:
+                before, after = parts
+                if len(after) == 3 and before:
+                    token = before + after
+                else:
+                    token = before + "." + after
+
+        try:
+            return float(sign + token)
+        except ValueError:
+            return None
+
+    def _infer_awin_currency(self, item: dict[str, Any]) -> str:
+        # Prefer explicit feed values in _pick_currency(). This fallback is only
+        # used when an Awin native feed sends bare numeric prices.
+        advertiser_id = self._pick_string(
+            item,
+            "_awin_advertiser_id",
+            "advertiser_id",
+            "merchant_id",
+            "programme_id",
+            "program_id",
+        ) or ""
+        feed_name = self._pick_string(item, "_awin_feed_name", "feed_name") or ""
+        region = self._pick_string(item, "_awin_feed_region", "programme_region", "region", "country", "market") or ""
+        merchant_url = self._pick_string(
+            item,
+            "merchant_product_url",
+            "merchant_deep_link",
+            "product_url",
+            "url",
+            "link",
+        ) or ""
+
+        hint = re.sub(r"[^a-z0-9]+", " ", f"{feed_name} {region}".lower()).strip()
+        hint_tokens = set(hint.split())
+        if "eu" in hint_tokens or "europe" in hint_tokens or "european" in hint_tokens:
+            return "EUR"
+        if "uk" in hint_tokens or "gb" in hint_tokens or "britain" in hint_tokens:
+            return "GBP"
+        if "pl" in hint_tokens or "poland" in hint_tokens:
+            return "PLN"
+        if "au" in hint_tokens or "australia" in hint_tokens:
+            return "AUD"
+        if "ca" in hint_tokens or "canada" in hint_tokens:
+            return "CAD"
+        if "dk" in hint_tokens or "denmark" in hint_tokens:
+            return "DKK"
+        if "se" in hint_tokens or "sweden" in hint_tokens:
+            return "SEK"
+        if "no" in hint_tokens or "norway" in hint_tokens:
+            return "NOK"
+
+        host = urllib.parse.urlparse(merchant_url).netloc.lower().split(":", 1)[0]
+        if host.endswith(".co.uk") or host.endswith(".uk"):
+            return "GBP"
+        if host.endswith(".com.au") or host.endswith(".au"):
+            return "AUD"
+        if host.endswith(".ca"):
+            return "CAD"
+        if host.endswith(".pl"):
+            return "PLN"
+        if host.endswith(".dk"):
+            return "DKK"
+        if host.endswith(".se"):
+            return "SEK"
+        if host.endswith(".no"):
+            return "NOK"
+        if host.endswith((".de", ".fr", ".es", ".it", ".nl", ".be", ".at", ".ie", ".pt", ".fi")):
+            return "EUR"
+
+        # TTfone's main Shopify/Awin feeds are UK/GBP; the dedicated EU feed
+        # is handled above from its "Shopify EU" feed name.
+        if advertiser_id.strip() == "28737":
+            return "GBP"
+        return "USD"
 
     def _pick_currency(self, item: dict[str, Any]) -> str | None:
         direct = self._pick_string(item, "currency", "currency_code", "currencyCode")
         if direct:
             return direct.upper()[:3]
 
-        for key in ("price", "sale_price", "oldPrice", "currentPrice", "product_price"):
+        for key in (
+            "price",
+            "sale_price",
+            "special_price",
+            "promo_price",
+            "promotional_price",
+            "offer_price",
+            "current_price",
+            "old_price",
+            "recommended_retail_price",
+            "merchant_product_price",
+            "merchant_product_price_old",
+            "oldPrice",
+            "currentPrice",
+            "product_price",
+            "product_price_old",
+        ):
             value = item.get(key)
             if value is None:
                 continue

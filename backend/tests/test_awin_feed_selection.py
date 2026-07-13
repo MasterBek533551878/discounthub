@@ -20,11 +20,14 @@ class AwinFeedSelectionTests(unittest.TestCase):
     def options(self, **overrides: object) -> AwinFeedListOptions:
         values = {
             "max_feeds": 5,
+            "max_feeds_per_advertiser": 5,
             "max_items_per_feed": 500,
+            "max_scan_rows_per_feed": 25000,
             "min_discount_percent": 1,
             "joined_only": True,
             "advertiser_id": "",
             "advertiser_name": "",
+            "excluded_advertiser_ids": (),
         }
         values.update(overrides)
         return AwinFeedListOptions(**values)
@@ -45,6 +48,41 @@ class AwinFeedSelectionTests(unittest.TestCase):
             [(feed.advertiser_id, feed.feed_name) for feed in selected],
             [("1", "A-1"), ("2", "B-1"), ("3", "C-1"), ("4", "D-1"), ("1", "A-2")],
         )
+
+
+    def test_general_provider_round_robins_second_feeds(self) -> None:
+        rows = [
+            self.row("1", "Store A", "A-1", "a1"),
+            self.row("1", "Store A", "A-2", "a2"),
+            self.row("1", "Store A", "A-3", "a3"),
+            self.row("2", "Store B", "B-1", "b1"),
+            self.row("2", "Store B", "B-2", "b2"),
+            self.row("3", "Store C", "C-1", "c1"),
+            self.row("3", "Store C", "C-2", "c2"),
+        ]
+
+        selected = self.service._select_feed_rows(
+            rows,
+            options=self.options(max_feeds=6, max_feeds_per_advertiser=2),
+        )
+
+        self.assertEqual(
+            [(feed.advertiser_id, feed.feed_name) for feed in selected],
+            [("1", "A-1"), ("2", "B-1"), ("3", "C-1"), ("1", "A-2"), ("2", "B-2"), ("3", "C-2")],
+        )
+
+    def test_general_provider_can_exclude_targeted_advertiser(self) -> None:
+        rows = [
+            self.row("28737", "TTfone", "TTfone", "ttfone"),
+            self.row("2", "Store B", "B-1", "b1"),
+        ]
+
+        selected = self.service._select_feed_rows(
+            rows,
+            options=self.options(excluded_advertiser_ids=("28737",)),
+        )
+
+        self.assertEqual([(feed.advertiser_id, feed.feed_name) for feed in selected], [("2", "B-1")])
 
     def test_targeted_provider_preserves_multiple_feeds_for_one_advertiser(self) -> None:
         rows = [
