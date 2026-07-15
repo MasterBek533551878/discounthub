@@ -75,17 +75,33 @@ def fetch_page(url: str, timeout: int) -> str:
 
 
 def detect_availability(page_text: str) -> tuple[str, int | None, int | None]:
-    for pattern in SOLD_OUT_PATTERNS:
-        if re.search(pattern, page_text, flags=re.IGNORECASE):
-            return "sold_out", 0, None
+    # Inspect only the actual lifetime-deal section. The FAQ also contains
+    # phrases such as "sold out", which must never close an active offer.
+    section_start = page_text.find("choose your lifetime deal")
+    section_end = page_text.find(
+        "frequently asked questions",
+        section_start if section_start >= 0 else 0,
+    )
 
+    if section_start >= 0:
+        deal_text = page_text[
+            section_start:section_end if section_end > section_start else None
+        ]
+    else:
+        deal_text = page_text
+
+    # A positive or zero numerical availability is the strongest signal.
     for index, pattern in enumerate(REMAINING_PATTERNS):
-        match = re.search(pattern, page_text, flags=re.IGNORECASE | re.DOTALL)
+        match = re.search(pattern, deal_text, flags=re.IGNORECASE | re.DOTALL)
         if not match:
             continue
 
         first = int(match.group(1))
-        second = int(match.group(2)) if match.lastindex and match.lastindex >= 2 else None
+        second = (
+            int(match.group(2))
+            if match.lastindex and match.lastindex >= 2
+            else None
+        )
 
         if index == 0:
             remaining, total = first, second
@@ -98,10 +114,26 @@ def detect_availability(page_text: str) -> tuple[str, int | None, int | None]:
 
         if remaining <= 0:
             return "sold_out", 0, total
+
         return "available", remaining, total
 
-    # The page currently uses both of these stable phrases while the offer is live.
-    if "exclusive discounthub offer" in page_text and "get lifetime access" in page_text:
+    # These signals are checked only inside the deal section, not the FAQ.
+    explicit_sold_out_patterns = (
+        r"\bavailability\s+0\s*/\s*\d+\s+left\b",
+        r"\b0\s+remaining\b",
+        r"\b0\s+of\s+\d+\s+lifetime\s+licenses?\s+remain\b",
+        r"\bstarter\s+sold\s+out\b",
+        r"\bdeal\s+is\s+closed\b",
+    )
+
+    for pattern in explicit_sold_out_patterns:
+        if re.search(pattern, deal_text, flags=re.IGNORECASE):
+            return "sold_out", 0, None
+
+    if (
+        "exclusive discounthub offer" in page_text
+        and "get lifetime access" in deal_text
+    ):
         return "available_unknown_count", None, None
 
     return "ambiguous", None, None
