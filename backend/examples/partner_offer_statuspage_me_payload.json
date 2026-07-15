@@ -1,0 +1,29 @@
+{
+  "id": "statuspage-me",
+  "title": "StatusPage.me Lifetime Deal",
+  "subtitle": "Uptime monitoring, status pages, incident management and on-call in one platform.",
+  "description": "Monitor websites and services from multiple regions, publish branded status pages, manage incidents and maintenance, and send alerts through email, webhooks, Slack, Discord and Telegram. The Starter lifetime plan includes 5 status pages and 10 monitors per page.",
+  "partnerName": "StatusPage.me",
+  "category": "devtools",
+  "tags": [
+    "Uptime Monitoring",
+    "Status Page",
+    "Incident Management",
+    "On-call",
+    "Lifetime Deal"
+  ],
+  "offerText": "15% off the Starter Lifetime Deal. Discount applied automatically while licenses remain.",
+  "originalPriceText": "$279",
+  "currentPriceText": "$237.15 one-time",
+  "code": null,
+  "landingUrl": "https://statuspage.me/lifetime-deal/partner/discounthub",
+  "checkoutUrl": "https://statuspage.me/lifetime-deal/partner/discounthub",
+  "imageUrl": "https://discounthub.uz/public/images/partner-offers/statuspage-me-banner.png",
+  "logoUrl": "https://discounthub.uz/public/images/partner-offers/statuspage-me-logo.png",
+  "countries": "Global",
+  "monetizationMode": "direct",
+  "validFrom": "2026-07-15T00:00:00Z",
+  "validUntil": null,
+  "featured": true,
+  "verified": true
+}
