@@ -1,0 +1,16 @@
+[Unit]
+Description=Check StatusPage.me DiscountHub lifetime deal availability
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/discounthub/backend
+StateDirectory=discounthub
+StateDirectoryMode=0750
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/discounthub/backend/scripts/watch_statuspage_me_offer.py --db /opt/discounthub/backend/data/discounthub.sqlite3 --state-file /var/lib/discounthub/statuspage-me-offer-watch.json --min-confirmations 2
+NoNewPrivileges=true
+PrivateTmp=true
