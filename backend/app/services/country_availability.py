@@ -281,10 +281,24 @@ def infer_availability(*values: Any) -> tuple[list[str], bool]:
     lowered = _clean_token(joined)
     if re.search(r"\b(global|worldwide|international)\b", lowered):
         return [], True
-    if "aliexpress" in lowered:
-        return [], True
     if "mercado libre" in lowered or "mercadolibre" in lowered:
         return list(LATAM_COUNTRIES), False
+
+    # Recognize explicit storefront suffixes before generic free-text matching.
+    # Restrict this to known marketplace/merchant labels so short codes such as
+    # IT, IN or AT are not confused with ordinary words in titles or URLs.
+    market_match = re.search(
+        r"(?:^|\b)(?:ebay|aliexpress|myprotein)\s+"
+        r"(us|usa|gb|uk|au|de|fr|pl|es|it|ca|nl)(?:$|\b)",
+        lowered,
+    )
+    if market_match:
+        market_code = normalize_country_code(market_match.group(1))
+        if market_code:
+            return [market_code], False
+
+    if re.search(r"(?:^|\b)(?:ebay|aliexpress)\s+(eu|europe)(?:$|\b)", lowered):
+        return list(EUROPE_COUNTRIES), False
 
     inferred: list[str] = []
     token_patterns = {
@@ -314,7 +328,65 @@ def infer_availability(*values: Any) -> tuple[list[str], bool]:
                 inferred.append(code)
                 break
 
-    return sorted(set(inferred)), False
+    inferred = sorted(set(inferred))
+    if inferred:
+        return inferred, False
+
+    # AliExpress has both market-specific feeds (for example FR, PL or UK)
+    # and genuinely worldwide feeds. Only use the global fallback after
+    # country/region hints have been exhausted, otherwise a platform label
+    # such as "AliExpress FR" would incorrectly become available everywhere.
+    if "aliexpress" in lowered:
+        return [], True
+
+    return [], False
+
+
+def resolve_deal_availability(
+    *,
+    explicit_availability: Any = None,
+    market_values: Iterable[Any] = (),
+    shipping_values: Any = None,
+    delivery_region_values: Any = None,
+) -> tuple[list[str], bool]:
+    """Resolve storefront availability separately from delivery reach.
+
+    Market/source hints take precedence over legacy ``ships_to`` values. A
+    product in an AliExpress FR feed may ship internationally, but the deal still
+    belongs to the French market for country filtering.
+    """
+    countries, is_global = normalize_availability(explicit_availability)
+    if countries or is_global:
+        return countries, is_global
+
+    # Market hints are ordered from the most authoritative label (normally
+    # ``platform``) to weaker fallbacks such as provider IDs and URLs. Return
+    # the first concrete country mapping so a legacy provider/URL hint cannot
+    # widen a storefront such as eBay GB to GB+US. Defer a generic global hint
+    # (for example plain "AliExpress") until every value has been checked for
+    # a concrete market.
+    market_global = False
+    for market_value in tuple(market_values):
+        market_countries, inferred_global = infer_availability(market_value)
+        if market_countries:
+            return market_countries, False
+        market_global = market_global or inferred_global
+
+    if market_global:
+        return [], True
+
+    shipping_countries, shipping_global = normalize_availability(shipping_values)
+    if shipping_countries or shipping_global:
+        return shipping_countries, shipping_global
+
+    # A bare global region was an old fallback for unknown providers. Do not
+    # promote those rows to worldwide; recognized global sources were handled
+    # above by infer_availability().
+    region_countries, _ = normalize_availability(delivery_region_values)
+    if region_countries:
+        return region_countries, False
+
+    return [], False
 
 
 def _flatten_values(value: Any) -> Iterable[Any]:

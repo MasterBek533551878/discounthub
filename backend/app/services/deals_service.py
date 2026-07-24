@@ -15,7 +15,10 @@ from app.models.deal import (
 )
 from app.repositories.deals_repository import DealsRepository
 from app.services.category_normalizer import normalize_category
-from app.services.country_availability import infer_availability, normalize_availability
+from app.services.country_availability import (
+    normalize_availability,
+    resolve_deal_availability,
+)
 
 # Demo rates only. Production must use a real exchange-rate source.
 DEMO_RATES: dict[str, float] = {
@@ -438,16 +441,17 @@ class DealsService:
             monetization_mode = "affiliate" if affiliate_url and affiliate_url != product_url else "direct"
 
         shipping_countries, _ = normalize_availability(payload.ships_to)
-        availability_countries, inferred_global = normalize_availability(payload.availability_countries)
-        if not availability_countries and not inferred_global:
-            availability_countries, inferred_global = infer_availability(
-                payload.ships_to,
-                payload.delivery_regions,
+        availability_countries, inferred_global = resolve_deal_availability(
+            explicit_availability=payload.availability_countries,
+            market_values=(
                 payload.platform,
                 payload.provider_id,
                 product_url,
                 affiliate_url,
-            )
+            ),
+            shipping_values=payload.ships_to,
+            delivery_region_values=payload.delivery_regions,
+        )
         is_global = inferred_global if payload.is_global is None else payload.is_global
         if is_global:
             availability_countries = []

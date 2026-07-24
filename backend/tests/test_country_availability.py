@@ -3,13 +3,21 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from app.db.database import (
+    _backfill_deal_availability,
+    _backfill_promotion_availability,
+)
 from app.db.schema import CREATE_DEALS_TABLE_SQL, CREATE_PROMOTIONS_TABLE_SQL
 from app.models.deal import Deal
 from app.models.promotion import Promotion
 from app.repositories.deals_repository import DealsRepository
 from app.repositories.promotions_repository import PromotionsRepository
 from app.services.awin_offers_service import AwinOffersService
-from app.services.country_availability import normalize_availability
+from app.services.country_availability import (
+    infer_availability,
+    normalize_availability,
+    resolve_deal_availability,
+)
 from app.services.feed_adapters import FeedAdapterService
 
 
@@ -30,6 +38,72 @@ class CountryAvailabilityTests(unittest.TestCase):
         self.assertEqual(countries, [])
         self.assertTrue(is_global)
 
+    def test_market_specific_aliexpress_is_not_marked_global(self) -> None:
+        countries, is_global = infer_availability(
+            "AliExpress FR",
+            "awin_feed_list",
+            "https://www.aliexpress.com/item/123.html",
+        )
+        self.assertEqual(countries, ["FR"])
+        self.assertFalse(is_global)
+
+        countries, is_global = infer_availability(
+            "AliExpress UK",
+            "awin_feed_list",
+        )
+        self.assertEqual(countries, ["GB"])
+        self.assertFalse(is_global)
+
+        countries, is_global = infer_availability(
+            "AliExpress",
+            "awin_feed_list",
+        )
+        self.assertEqual(countries, [])
+        self.assertTrue(is_global)
+
+        countries, is_global = infer_availability("eBay IT")
+        self.assertEqual(countries, ["IT"])
+        self.assertFalse(is_global)
+
+        countries, is_global = infer_availability("eBay ES")
+        self.assertEqual(countries, ["ES"])
+        self.assertFalse(is_global)
+
+    def test_market_country_takes_precedence_over_legacy_shipping_list(self) -> None:
+        countries, is_global = resolve_deal_availability(
+            market_values=(
+                "Aliexpress FR",
+                "awin_feed_list",
+                "https://www.aliexpress.com/item/123.html",
+            ),
+            shipping_values=["FR", "GB", "US", "PL", "DE"],
+            delivery_region_values=["global", "europe", "usa"],
+        )
+
+        self.assertEqual(countries, ["FR"])
+        self.assertFalse(is_global)
+
+        countries, is_global = resolve_deal_availability(
+            market_values=("eBay US", "ebay_us_v1"),
+            shipping_values=["CA", "GB", "US"],
+        )
+
+        self.assertEqual(countries, ["US"])
+        self.assertFalse(is_global)
+
+    def test_platform_market_precedes_conflicting_provider_and_url_hints(self) -> None:
+        countries, is_global = resolve_deal_availability(
+            market_values=(
+                "eBay GB",
+                "ebay_us_legacy",
+                "https://www.ebay.com/itm/123",
+            ),
+            shipping_values=["GB", "US"],
+        )
+
+        self.assertEqual(countries, ["GB"])
+        self.assertFalse(is_global)
+
     def test_awin_product_feed_region_is_not_written_as_shipping_country(self) -> None:
         normalized = FeedAdapterService()._normalize_awin(
             {
@@ -49,6 +123,95 @@ class CountryAvailabilityTests(unittest.TestCase):
         self.assertEqual(normalized["shipsTo"], [])
         self.assertEqual(normalized["availabilityCountries"], ["US"])
         self.assertFalse(normalized["isGlobal"])
+
+    def test_deal_backfill_repairs_conflicting_market_mapping(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        connection.execute(CREATE_DEALS_TABLE_SQL)
+        connection.execute(
+            """
+            INSERT INTO deals (
+                id, title, description, image_url, platform, category,
+                old_price, current_price, currency, product_url,
+                affiliate_url, provider_id, availability_countries,
+                is_global, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "ebay-gb-conflict",
+                "Deal",
+                "Deal description",
+                "https://example.test/image.jpg",
+                "eBay GB",
+                "Other",
+                100.0,
+                80.0,
+                "GBP",
+                "https://www.ebay.com/itm/123",
+                "https://www.ebay.com/itm/123",
+                "ebay_us_legacy",
+                '["GB", "US"]',
+                0,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+        try:
+            _backfill_deal_availability(connection)
+            row = connection.execute(
+                """
+                SELECT availability_countries, is_global
+                FROM deals
+                WHERE id = 'ebay-gb-conflict'
+                """
+            ).fetchone()
+        finally:
+            connection.close()
+
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row["availability_countries"], '["GB"]')
+        self.assertEqual(row["is_global"], 0)
+
+    def test_promotion_availability_backfill_runs_during_database_migration(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        connection.execute(CREATE_PROMOTIONS_TABLE_SQL)
+        connection.execute(
+            """
+            INSERT INTO promotions (
+                id, title, description, store, landing_url, provider_id, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "promotion-uk",
+                "20% off",
+                "United Kingdom offer",
+                "Example UK",
+                "https://example.co.uk/sale",
+                "awin_offers_1",
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+        try:
+            _backfill_promotion_availability(connection)
+            row = connection.execute(
+                """
+                SELECT availability_countries, is_global
+                FROM promotions
+                WHERE id = 'promotion-uk'
+                """
+            ).fetchone()
+        finally:
+            connection.close()
+
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row["availability_countries"], '["GB"]')
+        self.assertEqual(row["is_global"], 0)
 
     def test_awin_promotion_region_codes_are_preserved(self) -> None:
         promotion = AwinOffersService()._item_to_promotion(

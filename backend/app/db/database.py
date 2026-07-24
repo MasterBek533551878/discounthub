@@ -5,7 +5,10 @@ import sqlite3
 from pathlib import Path
 
 from app.core.config import get_settings
-from app.services.country_availability import infer_availability, normalize_availability
+from app.services.country_availability import (
+    infer_availability,
+    resolve_deal_availability,
+)
 
 SQL_PERF_RATE_CASE = """
 CASE UPPER(currency)
@@ -116,41 +119,61 @@ def _parse_json_list(value: object) -> list[object]:
 def _backfill_deal_availability(connection: sqlite3.Connection) -> None:
     rows = connection.execute(
         """
-        SELECT id, ships_to, delivery_regions, platform, provider_id, product_url, affiliate_url
+        SELECT
+            id,
+            ships_to,
+            delivery_regions,
+            platform,
+            provider_id,
+            product_url,
+            affiliate_url,
+            availability_countries,
+            is_global
         FROM deals
-        WHERE (availability_countries IS NULL OR TRIM(availability_countries) IN ('', '[]'))
-          AND COALESCE(is_global, 0) = 0
         """
     ).fetchall()
 
     updates: list[tuple[str, int, str]] = []
     for row in rows:
-        countries, is_global = normalize_availability(_parse_json_list(row["ships_to"]))
-        source_values = (
-            row["platform"],
-            row["provider_id"],
-            row["product_url"],
-            row["affiliate_url"],
-        )
-        inferred_countries, inferred_global = infer_availability(*source_values)
-        if not countries and not is_global:
-            region_countries, region_global = normalize_availability(
-                _parse_json_list(row["delivery_regions"])
+        current_countries = _parse_json_list(row["availability_countries"])
+        current_is_global = bool(row["is_global"])
+
+        # A concrete country embedded in the storefront label is authoritative
+        # and also repairs rows migrated by earlier builds (for example eBay GB
+        # rows widened by a conflicting legacy provider ID or URL).
+        platform_countries, platform_global = infer_availability(row["platform"])
+        if platform_countries:
+            countries, is_global = platform_countries, False
+        else:
+            countries, is_global = resolve_deal_availability(
+                explicit_availability=current_countries,
+                market_values=(
+                    row["platform"],
+                    row["provider_id"],
+                    row["product_url"],
+                    row["affiliate_url"],
+                ),
+                shipping_values=_parse_json_list(row["ships_to"]),
+                delivery_region_values=_parse_json_list(row["delivery_regions"]),
             )
-            if region_countries:
-                countries = region_countries
-            elif region_global and inferred_global:
-                # Older builds assigned ["global"] to unknown providers as a
-                # fallback. Trust it only when the source itself is recognizable
-                # as global; otherwise leave availability unknown and safe.
+            if current_is_global and not countries:
                 is_global = True
-        if not countries:
-            countries = inferred_countries
-        is_global = is_global or inferred_global
+            elif platform_global and not countries:
+                is_global = True
+
         if is_global:
             countries = []
-        if countries or is_global:
-            updates.append((json.dumps(countries), 1 if is_global else 0, str(row["id"])))
+
+        if not countries and not is_global:
+            continue
+
+        normalized_json = json.dumps(countries)
+        normalized_global = 1 if is_global else 0
+        if (
+            normalized_json != json.dumps(current_countries)
+            or normalized_global != int(current_is_global)
+        ):
+            updates.append((normalized_json, normalized_global, str(row["id"])))
 
     if updates:
         connection.executemany(
