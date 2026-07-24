@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UserSettingsStore {
   static const String _countryKey = 'user_country';
+  static const String _marketCountryKey = 'market_country_code';
   static const String _currencyKey = 'user_currency';
   static const String _languageKey = 'user_language';
   static const String _dataSourceKey = 'user_data_source';
@@ -15,6 +16,12 @@ class UserSettingsStore {
 
   static final ValueNotifier<String> country = ValueNotifier<String>(
     'Uzbekistan',
+  );
+
+  // Independent catalogue filter shared by Deals and Promos.
+  // Empty string means all countries and does not change the profile country.
+  static final ValueNotifier<String> marketCountryCode = ValueNotifier<String>(
+    '',
   );
 
   static final ValueNotifier<String> currency = ValueNotifier<String>('USD');
@@ -41,9 +48,7 @@ class UserSettingsStore {
   static const String dataSourceDemo = 'Demo';
   static const String dataSourceApi = 'API';
 
-  static const List<String> dataSources = [
-    dataSourceApi,
-  ];
+  static const List<String> dataSources = [dataSourceApi];
 
   static const List<String> countries = [
     'Uzbekistan',
@@ -125,6 +130,13 @@ class UserSettingsStore {
       fallback: 'Uzbekistan',
     );
 
+    final savedMarketCountry = (_prefs?.getString(_marketCountryKey) ?? '')
+        .trim()
+        .toUpperCase();
+    marketCountryCode.value = RegExp(r'^[A-Z]{2}$').hasMatch(savedMarketCountry)
+        ? savedMarketCountry
+        : '';
+
     currency.value = _safeValue(
       saved: _prefs?.getString(_currencyKey),
       allowed: currencies,
@@ -153,6 +165,8 @@ class UserSettingsStore {
     return countryCodes[country.value] ?? 'US';
   }
 
+  static String get selectedMarketCountryCode => marketCountryCode.value;
+
   static String get languageCode {
     return languageCodes[language.value] ?? 'en';
   }
@@ -162,6 +176,20 @@ class UserSettingsStore {
     country.value = value;
     await _prefs?.setString(_countryKey, value);
     _bump();
+  }
+
+  static Future<void> setMarketCountryCode(String value) async {
+    final normalized = value.trim().toUpperCase();
+    final safeValue = normalized.isEmpty || normalized == 'ALL'
+        ? ''
+        : (RegExp(r'^[A-Z]{2}$').hasMatch(normalized) ? normalized : '');
+    if (marketCountryCode.value == safeValue) return;
+    marketCountryCode.value = safeValue;
+    if (safeValue.isEmpty) {
+      await _prefs?.remove(_marketCountryKey);
+    } else {
+      await _prefs?.setString(_marketCountryKey, safeValue);
+    }
   }
 
   static Future<void> setCurrency(String value) async {
@@ -202,14 +230,20 @@ class UserSettingsStore {
 
   static String formatDealPrice(double amount, String currencyCode) {
     final normalizedCurrency = currencyCode.trim().toUpperCase();
-    final displayCurrency = normalizedCurrency.isEmpty ? currency.value : normalizedCurrency;
+    final displayCurrency = normalizedCurrency.isEmpty
+        ? currency.value
+        : normalizedCurrency;
     return formatNativeAmount(amount, displayCurrency);
   }
 
   static String formatNativeAmount(double amount, String currencyCode) {
     final normalizedCurrency = currencyCode.trim().toUpperCase();
-    final displayCurrency = normalizedCurrency.isEmpty ? currency.value : normalizedCurrency;
-    final decimalDigits = _zeroDecimalCurrencies.contains(displayCurrency) ? 0 : 2;
+    final displayCurrency = normalizedCurrency.isEmpty
+        ? currency.value
+        : normalizedCurrency;
+    final decimalDigits = _zeroDecimalCurrencies.contains(displayCurrency)
+        ? 0
+        : 2;
 
     final formatter = NumberFormat.currency(
       locale: 'en_US',
@@ -229,7 +263,6 @@ class UserSettingsStore {
     'ARS',
   };
 
-
   static String _safeApiBaseUrl(String? saved) {
     final normalized = saved?.trim();
     if (normalized == null || normalized.isEmpty) {
@@ -246,7 +279,8 @@ class UserSettingsStore {
     // should fall back to the production API so deals do not disappear when the
     // local backend is not running.
     final host = uri.host.toLowerCase();
-    final isLocalDevHost = host == 'localhost' ||
+    final isLocalDevHost =
+        host == 'localhost' ||
         host == '127.0.0.1' ||
         host == '10.0.2.2' ||
         host.startsWith('192.168.') ||

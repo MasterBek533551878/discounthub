@@ -20,13 +20,22 @@ class DealApiDto {
       oldPrice: _double(json['oldPrice']),
       currentPrice: _double(json['currentPrice']),
       currency: _string(json['currency'], fallback: 'USD'),
-      productUrl: _string(json['affiliateUrl'], fallback: _string(json['productUrl'])),
+      productUrl: _string(
+        json['affiliateUrl'],
+        fallback: _string(json['productUrl']),
+      ),
       rating: _double(json['rating']),
       reviewCount: _int(json['reviewCount']),
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
-      deliveryRegions: _stringList(json['deliveryRegions'] ?? json['delivery_regions']),
+      availabilityCountries: _stringList(
+        json['availabilityCountries'] ?? json['availability_countries'],
+      ),
+      isGlobal: _bool(json['isGlobal'] ?? json['is_global']),
+      deliveryRegions: _stringList(
+        json['deliveryRegions'] ?? json['delivery_regions'],
+      ),
       providerId: _nullableString(json['providerId'] ?? json['provider_id']),
       monetizationMode: _string(
         json['monetizationMode'] ?? json['monetization_mode'],

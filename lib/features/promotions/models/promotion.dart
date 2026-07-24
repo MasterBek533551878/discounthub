@@ -14,6 +14,8 @@ class Promotion {
     this.imageUrl,
     this.providerId,
     this.monetizationMode = 'affiliate',
+    this.availabilityCountries = const <String>[],
+    this.isGlobal = false,
     this.validFrom,
     this.validUntil,
   });
@@ -30,6 +32,8 @@ class Promotion {
   final String? imageUrl;
   final String? providerId;
   final String monetizationMode;
+  final List<String> availabilityCountries;
+  final bool isGlobal;
   final DateTime? validFrom;
   final DateTime? validUntil;
   final bool featured;
@@ -51,17 +55,24 @@ class Promotion {
       discountText: _string(json['discountText'] ?? json['discount_text']),
       code: _nullableString(json['code']),
       landingUrl: _string(json['landingUrl'] ?? json['landing_url']),
-      affiliateUrl: _nullableString(json['affiliateUrl'] ?? json['affiliate_url']),
+      affiliateUrl: _nullableString(
+        json['affiliateUrl'] ?? json['affiliate_url'],
+      ),
       imageUrl: _nullableString(json['imageUrl'] ?? json['image_url']),
       providerId: _nullableString(json['providerId'] ?? json['provider_id']),
       monetizationMode: _string(
         json['monetizationMode'] ?? json['monetization_mode'],
         fallback: 'affiliate',
       ),
+      availabilityCountries: _stringList(
+        json['availabilityCountries'] ?? json['availability_countries'],
+      ),
+      isGlobal: _bool(json['isGlobal'] ?? json['is_global']),
       validFrom: _dateTime(json['validFrom'] ?? json['valid_from']),
       validUntil: _dateTime(json['validUntil'] ?? json['valid_until']),
       featured: _bool(json['featured']),
-      updatedAt: _dateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
+      updatedAt:
+          _dateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
     );
   }
 
@@ -74,6 +85,15 @@ class Promotion {
     if (value == null) return null;
     final text = value.toString().trim();
     return text.isEmpty ? null : text;
+  }
+
+  static List<String> _stringList(dynamic value) {
+    if (value is! List) return const <String>[];
+    return value
+        .whereType<Object>()
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
   }
 
   static bool _bool(dynamic value) {

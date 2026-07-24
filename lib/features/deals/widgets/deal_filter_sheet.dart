@@ -7,12 +7,8 @@ import '../api/deal_facets.dart';
 import '../models/deal_filters.dart';
 import '../models/deal_query.dart';
 
-
 class DealFilterSheetResult {
-  const DealFilterSheetResult({
-    required this.filters,
-    required this.sort,
-  });
+  const DealFilterSheetResult({required this.filters, required this.sort});
 
   final DealFilters filters;
   final DealSort sort;
@@ -24,6 +20,7 @@ class DealFilterSheet extends StatefulWidget {
     required this.initialFilters,
     required this.platforms,
     required this.categories,
+    required this.countries,
     required this.initialSort,
     required this.maxAvailablePrice,
     this.facets,
@@ -32,6 +29,7 @@ class DealFilterSheet extends StatefulWidget {
   final DealFilters initialFilters;
   final List<String> platforms;
   final List<String> categories;
+  final List<String> countries;
   final DealSort initialSort;
   final double maxAvailablePrice;
   final DealFacets? facets;
@@ -43,24 +41,29 @@ class DealFilterSheet extends StatefulWidget {
 class _DealFilterSheetState extends State<DealFilterSheet> {
   late Set<String> _selectedPlatforms;
   late Set<String> _selectedCategories;
+  late String _selectedCountry;
   late int _minDiscount;
   late double _maxPrice;
   late bool _usePriceLimit;
   late DealSort _sort;
 
-  final TextEditingController _marketplaceSearchController = TextEditingController();
+  final TextEditingController _marketplaceSearchController =
+      TextEditingController();
   String _marketplaceSearchText = '';
 
-  double get _safeMaxPrice => widget.maxAvailablePrice < 1 ? 1 : widget.maxAvailablePrice;
+  double get _safeMaxPrice =>
+      widget.maxAvailablePrice < 1 ? 1 : widget.maxAvailablePrice;
 
   List<String> get _visiblePlatforms {
     final query = _marketplaceSearchText.trim().toLowerCase();
     if (query.isEmpty) return widget.platforms;
 
-    return widget.platforms.where((platform) {
-      if (platform == 'All') return true;
-      return platform.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return widget.platforms
+        .where((platform) {
+          if (platform == 'All') return true;
+          return platform.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -70,6 +73,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     final filters = widget.initialFilters;
     _selectedPlatforms = filters.selectedPlatforms.toSet();
     _selectedCategories = filters.selectedCategories.toSet();
+    _selectedCountry = filters.selectedCountryCode.isEmpty
+        ? 'All'
+        : filters.selectedCountryCode;
     _minDiscount = filters.minDiscount;
     _maxPrice = filters.maxPrice ?? _safeMaxPrice;
     _usePriceLimit = filters.maxPrice != null;
@@ -86,6 +92,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     return DealFilters(
       platformSelections: _selectedPlatforms.toList(growable: false),
       categorySelections: _selectedCategories.toList(growable: false),
+      shipToCountry: _selectedCountry,
       minDiscount: _minDiscount,
       maxPrice: _usePriceLimit ? _maxPrice : null,
     );
@@ -95,6 +102,7 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     setState(() {
       _selectedPlatforms = <String>{};
       _selectedCategories = <String>{};
+      _selectedCountry = 'All';
       _minDiscount = 0;
       _maxPrice = _safeMaxPrice;
       _usePriceLimit = false;
@@ -105,14 +113,10 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
   }
 
   void _apply() {
-    Navigator.of(context).pop(
-      DealFilterSheetResult(
-        filters: _currentFilters,
-        sort: _sort,
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pop(DealFilterSheetResult(filters: _currentFilters, sort: _sort));
   }
-
 
   void _togglePlatform(String value) {
     setState(() {
@@ -183,9 +187,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                     const SizedBox(height: 4),
                     Text(
                       AppStrings.select(
-                        en: 'Choose a store, category, discount level, price limit or sorting for the main feed.',
-                        ru: 'Выберите магазин, категорию, уровень скидки, лимит цены или сортировку для главной ленты.',
-                        uz: 'Asosiy lenta uchun do‘kon, kategoriya, chegirma darajasi, narx limiti yoki tartibni tanlang.',
+                        en: 'Choose a country, store, category, discount level, price limit or sorting for the main feed.',
+                        ru: 'Выберите страну, магазин, категорию, уровень скидки, лимит цены или сортировку для главной ленты.',
+                        uz: 'Asosiy lenta uchun mamlakat, do‘kon, kategoriya, chegirma darajasi, narx limiti yoki tartibni tanlang.',
                       ),
                       style: const TextStyle(
                         color: AppTheme.mutedText,
@@ -203,7 +207,8 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                         children: [
                           TextField(
                             controller: _marketplaceSearchController,
-                            onChanged: (value) => setState(() => _marketplaceSearchText = value),
+                            onChanged: (value) =>
+                                setState(() => _marketplaceSearchText = value),
                             decoration: InputDecoration(
                               hintText: AppStrings.select(
                                 en: 'Search stores',
@@ -224,7 +229,8 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                               name: _marketplaceLabel(value),
                               count: value == 'All'
                                   ? widget.facets?.totalCount ?? 0
-                                  : widget.facets?.countForMarketplace(value) ?? 0,
+                                  : widget.facets?.countForMarketplace(value) ??
+                                        0,
                             ),
                             onSelected: _togglePlatform,
                           ),
@@ -240,7 +246,9 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                         labelBuilder: (value) => _labelWithCount(
                           value: value,
                           allLabel: AppStrings.all,
-                          name: value == 'All' ? null : AppStrings.categoryName(value),
+                          name: value == 'All'
+                              ? null
+                              : AppStrings.categoryName(value),
                           count: value == 'All'
                               ? widget.facets?.totalCount ?? 0
                               : widget.facets?.countForCategory(value) ?? 0,
@@ -249,13 +257,27 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                       ),
                     ),
                     _Section(
+                      icon: Icons.public_rounded,
+                      title: AppStrings.country,
+                      child: _ChoiceWrap<String>(
+                        values: widget.countries,
+                        selectedValue: _selectedCountry,
+                        labelBuilder: _countryLabel,
+                        onSelected: (value) => setState(() {
+                          _selectedCountry = value;
+                        }),
+                      ),
+                    ),
+                    _Section(
                       icon: Icons.percent_rounded,
                       title: AppStrings.minimumDiscount,
                       child: _ChoiceWrap<int>(
                         values: const [0, 10, 20, 30, 40, 50, 70],
                         selectedValue: _minDiscount,
-                        labelBuilder: (value) => value == 0 ? AppStrings.any : '$value%+',
-                        onSelected: (value) => setState(() => _minDiscount = value),
+                        labelBuilder: (value) =>
+                            value == 0 ? AppStrings.any : '$value%+',
+                        onSelected: (value) =>
+                            setState(() => _minDiscount = value),
                       ),
                     ),
                     _Section(
@@ -285,8 +307,10 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
                         usePriceLimit: _usePriceLimit,
                         maxPrice: _maxPrice,
                         safeMaxPrice: _safeMaxPrice,
-                        onToggle: (value) => setState(() => _usePriceLimit = value),
-                        onPriceChanged: (value) => setState(() => _maxPrice = value),
+                        onToggle: (value) =>
+                            setState(() => _usePriceLimit = value),
+                        onPriceChanged: (value) =>
+                            setState(() => _maxPrice = value),
                       ),
                     ),
                   ],
@@ -318,6 +342,22 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     );
   }
 
+  String _countryLabel(String value) {
+    if (value == 'All') {
+      return AppStrings.select(
+        en: 'All countries',
+        ru: 'Все страны',
+        uz: 'Barcha mamlakatlar',
+      );
+    }
+    final facets = widget.facets?.countries ?? const <DealFacetItem>[];
+    for (final item in facets) {
+      if (item.id.trim().toUpperCase() == value.trim().toUpperCase()) {
+        return item.name;
+      }
+    }
+    return value;
+  }
 
   String? _marketplaceLabel(String value) {
     final normalized = value.trim().toLowerCase();
@@ -340,25 +380,42 @@ class _DealFilterSheetState extends State<DealFilterSheet> {
     return value == 'All' ? allLabel : name ?? value;
   }
 
-
-
   String _sortLabel(DealSort value) {
     switch (value) {
       case DealSort.discountHighToLow:
-        return AppStrings.select(en: 'Biggest discount', ru: 'Самая большая скидка', uz: 'Eng katta chegirma');
+        return AppStrings.select(
+          en: 'Biggest discount',
+          ru: 'Самая большая скидка',
+          uz: 'Eng katta chegirma',
+        );
       case DealSort.bestMatch:
-        return AppStrings.select(en: 'Best match', ru: 'Лучшие сначала', uz: 'Eng yaxshilari');
+        return AppStrings.select(
+          en: 'Best match',
+          ru: 'Лучшие сначала',
+          uz: 'Eng yaxshilari',
+        );
       case DealSort.newest:
         return AppStrings.select(en: 'Newest', ru: 'Новые', uz: 'Yangi');
       case DealSort.priceLowToHigh:
-        return AppStrings.select(en: 'Lowest price', ru: 'Сначала дешёвые', uz: 'Arzonlari oldin');
+        return AppStrings.select(
+          en: 'Lowest price',
+          ru: 'Сначала дешёвые',
+          uz: 'Arzonlari oldin',
+        );
       case DealSort.priceHighToLow:
-        return AppStrings.select(en: 'Highest price', ru: 'Сначала дорогие', uz: 'Qimmatlari oldin');
+        return AppStrings.select(
+          en: 'Highest price',
+          ru: 'Сначала дорогие',
+          uz: 'Qimmatlari oldin',
+        );
       case DealSort.ratingHighToLow:
-        return AppStrings.select(en: 'Highest rating', ru: 'Высокий рейтинг', uz: 'Yuqori reyting');
+        return AppStrings.select(
+          en: 'Highest rating',
+          ru: 'Высокий рейтинг',
+          uz: 'Yuqori reyting',
+        );
     }
   }
-
 }
 
 class _Section extends StatelessWidget {
@@ -451,7 +508,9 @@ class _PriceLimitCard extends StatelessWidget {
           ),
           subtitle: Text(
             usePriceLimit
-                ? AppStrings.showDealsUpTo(UserSettingsStore.formatUsd(maxPrice))
+                ? AppStrings.showDealsUpTo(
+                    UserSettingsStore.formatUsd(maxPrice),
+                  )
                 : AppStrings.noPriceLimit,
             style: const TextStyle(
               color: AppTheme.mutedText,
@@ -471,7 +530,6 @@ class _PriceLimitCard extends StatelessWidget {
     );
   }
 }
-
 
 class _ChoiceWrap<T> extends StatelessWidget {
   const _ChoiceWrap({
@@ -532,7 +590,9 @@ class _MultiChoiceWrap<T> extends StatelessWidget {
       runSpacing: 8,
       children: values.map((value) {
         final isAll = value == 'All';
-        final selected = isAll ? selectedValues.isEmpty : selectedValues.contains(value);
+        final selected = isAll
+            ? selectedValues.isEmpty
+            : selectedValues.contains(value);
         final label = labelBuilder?.call(value) ?? value.toString();
 
         return ChoiceChip(

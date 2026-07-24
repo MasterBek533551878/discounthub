@@ -15,6 +15,8 @@ class Deal {
     required this.freeShipping,
     required this.verified,
     required this.shipsTo,
+    this.availabilityCountries = const <String>[],
+    this.isGlobal = false,
     this.deliveryRegions = const <String>[],
     this.providerId,
     this.monetizationMode = 'direct',
@@ -39,6 +41,8 @@ class Deal {
   final bool freeShipping;
   final bool verified;
   final List<String> shipsTo;
+  final List<String> availabilityCountries;
+  final bool isGlobal;
   final List<String> deliveryRegions;
   final String? providerId;
   final String monetizationMode;
@@ -64,7 +68,13 @@ class Deal {
       freeShipping: _bool(json['freeShipping']),
       verified: _bool(json['verified']),
       shipsTo: _stringList(json['shipsTo']),
-      deliveryRegions: _stringList(json['deliveryRegions'] ?? json['delivery_regions']),
+      availabilityCountries: _stringList(
+        json['availabilityCountries'] ?? json['availability_countries'],
+      ),
+      isGlobal: _bool(json['isGlobal'] ?? json['is_global']),
+      deliveryRegions: _stringList(
+        json['deliveryRegions'] ?? json['delivery_regions'],
+      ),
       providerId: _nullableString(json['providerId'] ?? json['provider_id']),
       monetizationMode: _string(
         json['monetizationMode'] ?? json['monetization_mode'],
@@ -94,6 +104,8 @@ class Deal {
       'freeShipping': freeShipping,
       'verified': verified,
       'shipsTo': shipsTo,
+      'availabilityCountries': availabilityCountries,
+      'isGlobal': isGlobal,
       'deliveryRegions': deliveryRegions,
       'providerId': providerId,
       'monetizationMode': monetizationMode,
@@ -105,14 +117,18 @@ class Deal {
   }
 
   double get rawDiscountPercent {
-    if (oldPrice <= 0 || currentPrice <= 0 || oldPrice <= currentPrice) return 0;
+    if (oldPrice <= 0 || currentPrice <= 0 || oldPrice <= currentPrice) {
+      return 0;
+    }
     return ((oldPrice - currentPrice) / oldPrice) * 100;
   }
 
   bool get hasRealDiscount => rawDiscountPercent >= 1;
 
   int get discountPercent {
-    if (!hasRealDiscount) return 0;
+    if (!hasRealDiscount) {
+      return 0;
+    }
     final percent = rawDiscountPercent.round();
     if (percent < 1) return 0;
     if (percent > 100) return 100;
@@ -120,15 +136,19 @@ class Deal {
   }
 
   double get savedAmount {
-    if (!hasRealDiscount) return 0;
+    if (!hasRealDiscount) {
+      return 0;
+    }
     return oldPrice - currentPrice;
   }
 
-  String get formattedCurrentPrice => '$currency ${currentPrice.toStringAsFixed(2)}';
+  String get formattedCurrentPrice =>
+      '$currency ${currentPrice.toStringAsFixed(2)}';
 
   String get formattedOldPrice => '$currency ${oldPrice.toStringAsFixed(2)}';
 
-  String get formattedSavedAmount => '$currency ${savedAmount.toStringAsFixed(2)}';
+  String get formattedSavedAmount =>
+      '$currency ${savedAmount.toStringAsFixed(2)}';
 
   static DateTime? _dateTime(dynamic value) {
     if (value is DateTime) return value;

@@ -10,12 +10,14 @@ class PromotionsLoadResult {
     required this.totalCount,
     required this.baseUrl,
     this.stores = const <String>[],
+    this.countries = const <PromotionCountryFacet>[],
   });
 
   final List<Promotion> promotions;
   final int totalCount;
   final String baseUrl;
   final List<String> stores;
+  final List<PromotionCountryFacet> countries;
 }
 
 class PromotionsRepository {
@@ -30,6 +32,7 @@ class PromotionsRepository {
     String? type,
     String? store,
     List<String> stores = const <String>[],
+    String? country,
   }) async {
     Object? lastError;
 
@@ -44,6 +47,7 @@ class PromotionsRepository {
           type: type,
           store: store,
           stores: stores,
+          country: country,
           pageSize: 50,
         );
         var storeNames = const <String>[];
@@ -55,7 +59,9 @@ class PromotionsRepository {
         } catch (error) {
           // Older backends may not expose /promotions/stores yet. Keep the page
           // usable and fall back to stores from the loaded promotion cards.
-          debugPrint('DiscountHub promotion stores API failed: $baseUrl -> $error');
+          debugPrint(
+            'DiscountHub promotion stores API failed: $baseUrl -> $error',
+          );
         }
         if (storeNames.isEmpty) {
           final fallbackStores = <String>[];
@@ -69,11 +75,27 @@ class PromotionsRepository {
           }
           storeNames = List.unmodifiable(fallbackStores);
         }
+        var countryOptions = const <PromotionCountryFacet>[];
+        try {
+          countryOptions = await apiClient.getPromotionCountries(
+            query: query,
+            type: type,
+            store: stores.length == 1 ? stores.first : store,
+          );
+        } catch (error) {
+          debugPrint(
+            'DiscountHub promotion countries API failed: $baseUrl -> $error',
+          );
+        }
+        if (countryOptions.isEmpty) {
+          countryOptions = _fallbackCountryOptions(page.promotions);
+        }
         return PromotionsLoadResult(
           promotions: page.promotions,
           totalCount: page.totalCount,
           baseUrl: baseUrl,
           stores: storeNames,
+          countries: countryOptions,
         );
       } catch (error) {
         lastError = error;
@@ -81,7 +103,45 @@ class PromotionsRepository {
       }
     }
 
-    throw lastError ?? StateError('No promotions API URL candidates are available.');
+    throw lastError ??
+        StateError('No promotions API URL candidates are available.');
+  }
+
+  List<PromotionCountryFacet> _fallbackCountryOptions(
+    List<Promotion> promotions,
+  ) {
+    final codes = <String>[];
+    for (final promotion in promotions) {
+      for (final raw in promotion.availabilityCountries) {
+        final code = raw.trim().toUpperCase();
+        if (code.isEmpty || codes.contains(code)) continue;
+        codes.add(code);
+      }
+    }
+    codes.sort();
+    return List<PromotionCountryFacet>.unmodifiable(
+      codes.map(
+        (code) => PromotionCountryFacet(id: code, name: _countryName(code)),
+      ),
+    );
+  }
+
+  String _countryName(String code) {
+    const names = <String, String>{
+      'US': 'United States',
+      'GB': 'United Kingdom',
+      'FR': 'France',
+      'DE': 'Germany',
+      'ES': 'Spain',
+      'IT': 'Italy',
+      'PL': 'Poland',
+      'AU': 'Australia',
+      'CA': 'Canada',
+      'BR': 'Brazil',
+      'MX': 'Mexico',
+      'UZ': 'Uzbekistan',
+    };
+    return names[code] ?? code;
   }
 
   Uri clickUri({required String promotionId, required String baseUrl}) {

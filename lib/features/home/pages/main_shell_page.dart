@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/app_theme.dart';
+import '../../ai/pages/ai_finder_page.dart';
 import '../../deals/pages/deals_home_page.dart';
 import '../../partner_offers/pages/partner_offers_page.dart';
 import '../../promotions/pages/promotions_page.dart';
@@ -26,15 +27,13 @@ class _MainShellPageState extends State<MainShellPage> {
         final pages = [
           DealsHomePage(key: ValueKey('deals_$version')),
           PromotionsPage(key: ValueKey('promotions_$version')),
+          AiFinderPage(key: ValueKey('ai_$version')),
           PartnerOffersPage(key: ValueKey('partners_$version')),
           SettingsPage(key: ValueKey('settings_$version')),
         ];
 
         return Scaffold(
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: pages,
-          ),
+          body: IndexedStack(index: _selectedIndex, children: pages),
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -70,6 +69,11 @@ class _MainShellPageState extends State<MainShellPage> {
                         ru: 'Акции',
                         uz: 'Aksiyalar',
                       ),
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.auto_awesome_outlined),
+                      selectedIcon: const Icon(Icons.auto_awesome_rounded),
+                      label: 'AI',
                     ),
                     NavigationDestination(
                       icon: const Icon(Icons.handshake_outlined),

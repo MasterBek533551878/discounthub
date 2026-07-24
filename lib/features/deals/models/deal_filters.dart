@@ -32,23 +32,29 @@ class DealFilters {
   final bool verifiedOnly;
 
   List<String> get selectedPlatforms => _normalizedSelections(
-        platformSelections,
-        fallback: platform,
-        publicMarketplace: true,
-      );
+    platformSelections,
+    fallback: platform,
+    publicMarketplace: true,
+  );
 
-  List<String> get selectedCategories => _normalizedSelections(
-        categorySelections,
-        fallback: category,
-      );
+  List<String> get selectedCategories =>
+      _normalizedSelections(categorySelections, fallback: category);
 
   bool get hasPlatformFilters => selectedPlatforms.isNotEmpty;
 
   bool get hasCategoryFilters => selectedCategories.isNotEmpty;
 
+  String get selectedCountryCode {
+    final normalized = shipToCountry.trim().toUpperCase();
+    return normalized.isEmpty || normalized == 'ALL' ? '' : normalized;
+  }
+
+  bool get hasCountryFilter => selectedCountryCode.isNotEmpty;
+
   bool get hasActiveFilters {
     return hasPlatformFilters ||
         hasCategoryFilters ||
+        hasCountryFilter ||
         minDiscount > 0 ||
         maxPrice != null;
   }
@@ -58,6 +64,7 @@ class DealFilters {
 
     if (hasPlatformFilters) count++;
     if (hasCategoryFilters) count++;
+    if (hasCountryFilter) count++;
     if (minDiscount > 0) count++;
     if (maxPrice != null) count++;
 
@@ -71,17 +78,32 @@ class DealFilters {
         .map(_publicMarketplaceLabel)
         .toSet();
     final selectedCategoryLabels = selectedCategories.toSet();
+    final countryCode = selectedCountryCode;
 
     return deals.where((deal) {
-      final matchesPlatform = selectedPlatformLabels.isEmpty ||
-          selectedPlatformLabels.contains(_publicMarketplaceLabel(deal.platform));
-      final matchesCategory = selectedCategoryLabels.isEmpty ||
+      final matchesPlatform =
+          selectedPlatformLabels.isEmpty ||
+          selectedPlatformLabels.contains(
+            _publicMarketplaceLabel(deal.platform),
+          );
+      final matchesCategory =
+          selectedCategoryLabels.isEmpty ||
           selectedCategoryLabels.contains(deal.category);
+      final countryValues = deal.availabilityCountries.isNotEmpty
+          ? deal.availabilityCountries
+          : deal.shipsTo;
+      final matchesCountry =
+          countryCode.isEmpty ||
+          deal.isGlobal ||
+          countryValues.any(
+            (value) => value.trim().toUpperCase() == countryCode,
+          );
       final matchesDiscount = deal.discountPercent >= minDiscount;
       final matchesPrice = maxPrice == null || deal.currentPrice <= maxPrice!;
 
       return matchesPlatform &&
           matchesCategory &&
+          matchesCountry &&
           matchesDiscount &&
           matchesPrice;
     }).toList();

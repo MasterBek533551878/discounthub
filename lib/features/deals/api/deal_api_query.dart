@@ -40,16 +40,16 @@ class DealApiQuery {
   final int page;
   final int pageSize;
 
-  factory DealApiQuery.fromDealQuery(
-    DealQuery query, {
-    String currency = '',
-  }) {
+  factory DealApiQuery.fromDealQuery(DealQuery query, {String currency = ''}) {
     final filters = query.filters;
 
     return DealApiQuery(
       searchText: query.searchText,
       platforms: _publicMarketplaceFilters(filters.selectedPlatforms),
       categories: _nonEmptyAllValues(filters.selectedCategories),
+      shipToCountry: filters.selectedCountryCode.isEmpty
+          ? null
+          : filters.selectedCountryCode,
       monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
@@ -65,6 +65,9 @@ class DealApiQuery {
     return DealApiQuery(
       platforms: _publicMarketplaceFilters(filters.selectedPlatforms),
       categories: _nonEmptyAllValues(filters.selectedCategories),
+      shipToCountry: filters.selectedCountryCode.isEmpty
+          ? null
+          : filters.selectedCountryCode,
       monetizationMode: null,
       currency: currency,
       minDiscount: filters.minDiscount,
@@ -141,7 +144,7 @@ class DealApiQuery {
     addTextParameter('q', searchText);
     addMultiTextParameter('platform', platforms, fallback: platform);
     addMultiTextParameter('category', categories, fallback: category);
-    addTextParameter('ships_to', shipToCountry);
+    addTextParameter('country', shipToCountry);
     addTextParameter('delivery_region', deliveryRegion);
     addTextParameter('monetization_mode', monetizationMode);
 
@@ -173,7 +176,9 @@ class DealApiQuery {
     final normalizedValues = <String>[];
     for (final value in values) {
       final mapped = _publicMarketplaceFilter(value);
-      if (mapped == null || normalizedValues.contains(mapped)) continue;
+      if (mapped == null || normalizedValues.contains(mapped)) {
+        continue;
+      }
       normalizedValues.add(mapped);
     }
     return List<String>.unmodifiable(normalizedValues);
@@ -181,7 +186,9 @@ class DealApiQuery {
 
   static String? _publicMarketplaceFilter(String? value) {
     final normalized = value?.trim();
-    if (normalized == null || normalized.isEmpty || normalized == 'All') return null;
+    if (normalized == null || normalized.isEmpty || normalized == 'All') {
+      return null;
+    }
 
     final lower = normalized.toLowerCase();
     if (lower.startsWith('ebay')) return 'eBay';

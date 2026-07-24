@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_theme.dart';
 import '../../settings/app_strings.dart';
+import '../../settings/settings_store.dart';
+import '../api/promotions_api_client.dart';
 import '../data/promotions_repository.dart';
 import '../models/promotion.dart';
 
@@ -23,18 +25,28 @@ class _PromotionsPageState extends State<PromotionsPage> {
   Future<PromotionsLoadResult>? _future;
   String? _selectedType;
   final Set<String> _selectedStores = <String>{};
+  String? _selectedCountry;
+  List<PromotionCountryFacet> _knownCountries = const <PromotionCountryFacet>[];
   List<String> _knownStores = const <String>[];
   Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
+    final savedCountry = UserSettingsStore.marketCountryCode.value;
+    _selectedCountry = savedCountry.isEmpty ? null : savedCountry;
+    UserSettingsStore.marketCountryCode.addListener(
+      _handleMarketCountryChanged,
+    );
     _future = _loadPromotions();
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    UserSettingsStore.marketCountryCode.removeListener(
+      _handleMarketCountryChanged,
+    );
     _searchController.dispose();
     super.dispose();
   }
@@ -44,8 +56,10 @@ class _PromotionsPageState extends State<PromotionsPage> {
       query: _searchController.text,
       type: _selectedType,
       stores: _selectedStores.toList(growable: false),
+      country: _selectedCountry,
     );
     _rememberStores(result.stores);
+    _rememberCountries(result.countries);
     return result;
   }
 
@@ -54,7 +68,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
     for (final rawStore in storeNames) {
       final store = rawStore.trim();
       if (store.isEmpty) continue;
-      final exists = stores.any((value) => value.toLowerCase() == store.toLowerCase());
+      final exists = stores.any(
+        (value) => value.toLowerCase() == store.toLowerCase(),
+      );
       if (!exists) stores.add(store);
     }
 
@@ -72,9 +88,58 @@ class _PromotionsPageState extends State<PromotionsPage> {
     setState(() => _knownStores = List.unmodifiable(stores));
   }
 
+  void _rememberCountries(List<PromotionCountryFacet> options) {
+    final values = <PromotionCountryFacet>[];
+    for (final option in options) {
+      final id = option.id.trim().toUpperCase();
+      if (id.isEmpty || values.any((item) => item.id == id)) continue;
+      values.add(PromotionCountryFacet(id: id, name: option.name));
+    }
+    final selected = _selectedCountry;
+    if (selected != null && values.every((item) => item.id != selected)) {
+      values.insert(0, PromotionCountryFacet(id: selected, name: selected));
+    }
+    var unchanged = values.length == _knownCountries.length;
+    if (unchanged) {
+      for (var index = 0; index < values.length; index += 1) {
+        if (values[index].id != _knownCountries[index].id ||
+            values[index].name != _knownCountries[index].name) {
+          unchanged = false;
+          break;
+        }
+      }
+    }
+    if (unchanged || !mounted) return;
+    setState(() => _knownCountries = List.unmodifiable(values));
+  }
+
+  void _handleMarketCountryChanged() {
+    if (!mounted) return;
+    final code = UserSettingsStore.marketCountryCode.value;
+    final next = code.isEmpty ? null : code;
+    if (_selectedCountry == next) return;
+    setState(() {
+      _selectedCountry = next;
+      _future = _loadPromotions();
+    });
+  }
+
+  Future<void> _setCountry(String? country) async {
+    final normalized = country?.trim().toUpperCase();
+    final next = normalized == null || normalized.isEmpty ? null : normalized;
+    if (_selectedCountry == next) return;
+    setState(() {
+      _selectedCountry = next;
+      _future = _loadPromotions();
+    });
+    await UserSettingsStore.setMarketCountryCode(next ?? '');
+  }
+
   Future<void> _refresh() async {
     final future = _loadPromotions();
-    setState(() => _future = future);
+    setState(() {
+      _future = future;
+    });
     try {
       await future;
     } catch (_) {
@@ -86,7 +151,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) return;
-      setState(() => _future = _loadPromotions());
+      setState(() {
+        _future = _loadPromotions();
+      });
     });
   }
 
@@ -111,7 +178,10 @@ class _PromotionsPageState extends State<PromotionsPage> {
     });
   }
 
-  Future<void> _openPromotion(PromotionsLoadResult result, Promotion promotion) async {
+  Future<void> _openPromotion(
+    PromotionsLoadResult result,
+    Promotion promotion,
+  ) async {
     final url = _repository.clickUri(
       promotionId: promotion.id,
       baseUrl: result.baseUrl,
@@ -119,9 +189,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
     final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!mounted) return;
     if (!opened) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.couldNotOpenLink)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.couldNotOpenLink)));
     }
   }
 
@@ -135,7 +205,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
         content: Text(
           AppStrings.select(
             en: 'Promo code copied',
-            ru: 'Промокод скопирован',
+            ru: 'РџСЂРѕРјРѕРєРѕРґ СЃРєРѕРїРёСЂРѕРІР°РЅ',
             uz: 'Promokod nusxalandi',
           ),
         ),
@@ -148,11 +218,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          AppStrings.select(
-            en: 'Promos',
-            ru: 'Акции',
-            uz: 'Aksiyalar',
-          ),
+          AppStrings.select(en: 'Promos', ru: 'РђРєС†РёРё', uz: 'Aksiyalar'),
         ),
       ),
       body: FutureBuilder<PromotionsLoadResult>(
@@ -174,7 +240,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   onChanged: _onSearchChanged,
                   onClear: () {
                     _searchController.clear();
-                    setState(() => _future = _loadPromotions());
+                    setState(() {
+                      _future = _loadPromotions();
+                    });
                   },
                 ),
                 const SizedBox(height: 12),
@@ -182,6 +250,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
                   selectedType: _selectedType,
                   onSelected: _setType,
                 ),
+                if (_knownCountries.isNotEmpty || _selectedCountry != null) ...[
+                  const SizedBox(height: 12),
+                  _PromotionCountryFilters(
+                    countries: _knownCountries,
+                    selectedCountry: _selectedCountry,
+                    onSelected: _setCountry,
+                  ),
+                ],
                 if (_knownStores.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _PromotionStoreFilters(
@@ -200,13 +276,13 @@ class _PromotionsPageState extends State<PromotionsPage> {
                     icon: Icons.cloud_off_rounded,
                     title: AppStrings.select(
                       en: 'Promotions are not available yet',
-                      ru: 'Акции пока недоступны',
+                      ru: 'РђРєС†РёРё РїРѕРєР° РЅРµРґРѕСЃС‚СѓРїРЅС‹',
                       uz: 'Aksiyalar hozircha mavjud emas',
                     ),
                     message: AppStrings.select(
                       en: 'The app is ready for promo codes and store sales. Connect the backend promotions source to fill this tab.',
-                      ru: 'Раздел уже готов для промокодов и распродаж. Подключите backend-источник акций, чтобы заполнить эту вкладку.',
-                      uz: 'Ilova promokodlar va do‘kon aksiyalari uchun tayyor. Bu bo‘limni to‘ldirish uchun backend manbasini ulang.',
+                      ru: 'Р Р°Р·РґРµР» СѓР¶Рµ РіРѕС‚РѕРІ РґР»СЏ РїСЂРѕРјРѕРєРѕРґРѕРІ Рё СЂР°СЃРїСЂРѕРґР°Р¶. РџРѕРґРєР»СЋС‡РёС‚Рµ backend-РёСЃС‚РѕС‡РЅРёРє Р°РєС†РёР№, С‡С‚РѕР±С‹ Р·Р°РїРѕР»РЅРёС‚СЊ СЌС‚Сѓ РІРєР»Р°РґРєСѓ.',
+                      uz: 'Ilova promokodlar va doвЂkon aksiyalari uchun tayyor. Bu boвЂlimni toвЂldirish uchun backend manbasini ulang.',
                     ),
                     onRetry: () => setState(() => _future = _loadPromotions()),
                   ),
@@ -216,13 +292,13 @@ class _PromotionsPageState extends State<PromotionsPage> {
                     icon: Icons.local_offer_outlined,
                     title: AppStrings.select(
                       en: 'No live promos right now',
-                      ru: 'Сейчас нет активных акций',
-                      uz: 'Hozir faol aksiyalar yo‘q',
+                      ru: 'РЎРµР№С‡Р°СЃ РЅРµС‚ Р°РєС‚РёРІРЅС‹С… Р°РєС†РёР№',
+                      uz: 'Hozir faol aksiyalar yoвЂq',
                     ),
                     message: AppStrings.select(
                       en: 'When promo codes, sales or short-time campaigns are imported, they will appear here.',
-                      ru: 'Когда импортируются промокоды, распродажи или срочные акции, они появятся здесь.',
-                      uz: 'Promokodlar, chegirmali savdolar yoki qisqa muddatli aksiyalar import qilinganda shu yerda ko‘rinadi.',
+                      ru: 'РљРѕРіРґР° РёРјРїРѕСЂС‚РёСЂСѓСЋС‚СЃСЏ РїСЂРѕРјРѕРєРѕРґС‹, СЂР°СЃРїСЂРѕРґР°Р¶Рё РёР»Рё СЃСЂРѕС‡РЅС‹Рµ Р°РєС†РёРё, РѕРЅРё РїРѕСЏРІСЏС‚СЃСЏ Р·РґРµСЃСЊ.',
+                      uz: 'Promokodlar, chegirmali savdolar yoki qisqa muddatli aksiyalar import qilinganda shu yerda koвЂrinadi.',
                     ),
                     onRetry: () => setState(() => _future = _loadPromotions()),
                   ),
@@ -258,8 +334,16 @@ class _PromotionsHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final countText = totalCount == null || totalCount == 0
-        ? AppStrings.select(en: 'Promo codes and sales', ru: 'Промокоды и распродажи', uz: 'Promokodlar va aksiyalar')
-        : AppStrings.select(en: '$totalCount live promos', ru: '$totalCount активных акций', uz: '$totalCount ta faol aksiya');
+        ? AppStrings.select(
+            en: 'Promo codes and sales',
+            ru: 'РџСЂРѕРјРѕРєРѕРґС‹ Рё СЂР°СЃРїСЂРѕРґР°Р¶Рё',
+            uz: 'Promokodlar va aksiyalar',
+          )
+        : AppStrings.select(
+            en: '$totalCount live promos',
+            ru: '$totalCount Р°РєС‚РёРІРЅС‹С… Р°РєС†РёР№',
+            uz: '$totalCount ta faol aksiya',
+          );
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -303,8 +387,8 @@ class _PromotionsHero extends StatelessWidget {
                 Text(
                   AppStrings.select(
                     en: 'Store-wide offers, promo codes and limited-time sales in one place.',
-                    ru: 'Общие акции магазинов, промокоды и срочные распродажи в одном месте.',
-                    uz: 'Do‘kon aksiyalari, promokodlar va qisqa muddatli chegirmalar bir joyda.',
+                    ru: 'РћР±С‰РёРµ Р°РєС†РёРё РјР°РіР°Р·РёРЅРѕРІ, РїСЂРѕРјРѕРєРѕРґС‹ Рё СЃСЂРѕС‡РЅС‹Рµ СЂР°СЃРїСЂРѕРґР°Р¶Рё РІ РѕРґРЅРѕРј РјРµСЃС‚Рµ.',
+                    uz: 'DoвЂkon aksiyalari, promokodlar va qisqa muddatli chegirmalar bir joyda.',
                   ),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.86),
@@ -343,8 +427,8 @@ class _PromotionSearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded),
         hintText: AppStrings.select(
           en: 'Search promos or stores',
-          ru: 'Поиск акций или магазинов',
-          uz: 'Aksiya yoki do‘kon qidirish',
+          ru: 'РџРѕРёСЃРє Р°РєС†РёР№ РёР»Рё РјР°РіР°Р·РёРЅРѕРІ',
+          uz: 'Aksiya yoki doвЂkon qidirish',
         ),
         suffixIcon: controller.text.trim().isEmpty
             ? null
@@ -357,6 +441,61 @@ class _PromotionSearchField extends StatelessWidget {
   }
 }
 
+class _PromotionCountryFilters extends StatelessWidget {
+  const _PromotionCountryFilters({
+    required this.countries,
+    required this.selectedCountry,
+    required this.onSelected,
+  });
+
+  final List<PromotionCountryFacet> countries;
+  final String? selectedCountry;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppStrings.country,
+          style: const TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _HorizontalWheelScrollView(
+          child: Row(
+            children: [
+              ChoiceChip(
+                selected: selectedCountry == null,
+                label: Text(
+                  AppStrings.select(
+                    en: 'All countries',
+                    ru: 'Р’СЃРµ СЃС‚СЂР°РЅС‹',
+                    uz: 'Barcha mamlakatlar',
+                  ),
+                ),
+                onSelected: (_) => onSelected(null),
+              ),
+              const SizedBox(width: 8),
+              for (final country in countries) ...[
+                ChoiceChip(
+                  selected: selectedCountry == country.id,
+                  label: Text(country.name),
+                  onSelected: (_) => onSelected(country.id),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _PromotionStoreFilters extends StatelessWidget {
   const _PromotionStoreFilters({
@@ -375,7 +514,7 @@ class _PromotionStoreFilters extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          AppStrings.select(en: 'Store', ru: 'Магазин', uz: 'Do‘kon'),
+          AppStrings.select(en: 'Store', ru: 'РњР°РіР°Р·РёРЅ', uz: 'DoвЂkon'),
           style: const TextStyle(
             color: AppTheme.mutedText,
             fontSize: 12,
@@ -391,8 +530,8 @@ class _PromotionStoreFilters extends StatelessWidget {
                 label: Text(
                   AppStrings.select(
                     en: 'All stores',
-                    ru: 'Все магазины',
-                    uz: 'Barcha do‘konlar',
+                    ru: 'Р’СЃРµ РјР°РіР°Р·РёРЅС‹',
+                    uz: 'Barcha doвЂkonlar',
                   ),
                 ),
                 onSelected: (_) => onSelected(null),
@@ -426,10 +565,30 @@ class _PromotionTypeFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = <_PromoFilterOption>[
-      _PromoFilterOption(null, AppStrings.select(en: 'All', ru: 'Все', uz: 'Hammasi')),
-      _PromoFilterOption('coupon', AppStrings.select(en: 'Codes', ru: 'Промокоды', uz: 'Promokodlar')),
-      _PromoFilterOption('sale', AppStrings.select(en: 'Sales', ru: 'Распродажи', uz: 'Aksiyalar')),
-      _PromoFilterOption('flash_sale', AppStrings.select(en: 'Urgent', ru: 'Срочно', uz: 'Shoshilinch')),
+      _PromoFilterOption(
+        null,
+        AppStrings.select(en: 'All', ru: 'Р’СЃРµ', uz: 'Hammasi'),
+      ),
+      _PromoFilterOption(
+        'coupon',
+        AppStrings.select(
+          en: 'Codes',
+          ru: 'РџСЂРѕРјРѕРєРѕРґС‹',
+          uz: 'Promokodlar',
+        ),
+      ),
+      _PromoFilterOption(
+        'sale',
+        AppStrings.select(
+          en: 'Sales',
+          ru: 'Р Р°СЃРїСЂРѕРґР°Р¶Рё',
+          uz: 'Aksiyalar',
+        ),
+      ),
+      _PromoFilterOption(
+        'flash_sale',
+        AppStrings.select(en: 'Urgent', ru: 'РЎСЂРѕС‡РЅРѕ', uz: 'Shoshilinch'),
+      ),
     ];
 
     return _HorizontalWheelScrollView(
@@ -475,10 +634,7 @@ class _PromotionCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            AppTheme.softBlue.withValues(alpha: 0.32),
-          ],
+          colors: [Colors.white, AppTheme.softBlue.withValues(alpha: 0.32)],
         ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: AppTheme.line),
@@ -503,19 +659,30 @@ class _PromotionCard extends StatelessWidget {
                         _PromotionBadge(label: _typeLabel(promotion.type)),
                         if (promotion.featured)
                           _PromotionBadge(
-                            label: AppStrings.select(en: 'Featured', ru: 'Лучшее', uz: 'Tanlangan'),
+                            label: AppStrings.select(
+                              en: 'Featured',
+                              ru: 'Р›СѓС‡С€РµРµ',
+                              uz: 'Tanlangan',
+                            ),
                             isAccent: true,
                           ),
                         if (promotion.isFlashSale)
                           _PromotionBadge(
-                            label: AppStrings.select(en: 'Ends soon', ru: 'Скоро закончится', uz: 'Tez tugaydi'),
+                            label: AppStrings.select(
+                              en: 'Ends soon',
+                              ru: 'РЎРєРѕСЂРѕ Р·Р°РєРѕРЅС‡РёС‚СЃСЏ',
+                              uz: 'Tez tugaydi',
+                            ),
                             isWarning: true,
                           ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.72),
                         borderRadius: BorderRadius.circular(999),
@@ -524,7 +691,11 @@ class _PromotionCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.storefront_rounded, size: 14, color: AppTheme.primary),
+                          const Icon(
+                            Icons.storefront_rounded,
+                            size: 14,
+                            color: AppTheme.primary,
+                          ),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
@@ -595,7 +766,7 @@ class _PromotionCard extends StatelessWidget {
             label: Text(
               AppStrings.select(
                 en: 'Open promo',
-                ru: 'Открыть акцию',
+                ru: 'РћС‚РєСЂС‹С‚СЊ Р°РєС†РёСЋ',
                 uz: 'Aksiyani ochish',
               ),
             ),
@@ -608,11 +779,23 @@ class _PromotionCard extends StatelessWidget {
   String _typeLabel(String type) {
     switch (type) {
       case 'coupon':
-        return AppStrings.select(en: 'Promo code', ru: 'Промокод', uz: 'Promokod');
+        return AppStrings.select(
+          en: 'Promo code',
+          ru: 'РџСЂРѕРјРѕРєРѕРґ',
+          uz: 'Promokod',
+        );
       case 'flash_sale':
-        return AppStrings.select(en: 'Urgent sale', ru: 'Срочная акция', uz: 'Shoshilinch aksiya');
+        return AppStrings.select(
+          en: 'Urgent sale',
+          ru: 'РЎСЂРѕС‡РЅР°СЏ Р°РєС†РёСЏ',
+          uz: 'Shoshilinch aksiya',
+        );
       default:
-        return AppStrings.select(en: 'Sale', ru: 'Распродажа', uz: 'Aksiya');
+        return AppStrings.select(
+          en: 'Sale',
+          ru: 'Р Р°СЃРїСЂРѕРґР°Р¶Р°',
+          uz: 'Aksiya',
+        );
     }
   }
 }
@@ -689,11 +872,7 @@ class _PromotionVisual extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(
-                icon,
-                color: AppTheme.primary,
-                size: 15,
-              ),
+              child: Icon(icon, color: AppTheme.primary, size: 15),
             ),
           ),
         ],
@@ -712,7 +891,11 @@ class _PromotionVisual extends StatelessWidget {
       final word = words.first;
       return String.fromCharCodes(word.runes.take(2)).toUpperCase();
     }
-    return words.take(2).map((word) => String.fromCharCode(word.runes.first)).join().toUpperCase();
+    return words
+        .take(2)
+        .map((word) => String.fromCharCode(word.runes.first))
+        .join()
+        .toUpperCase();
   }
 }
 
@@ -730,10 +913,12 @@ class _HorizontalWheelScrollView extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_HorizontalWheelScrollView> createState() => _HorizontalWheelScrollViewState();
+  State<_HorizontalWheelScrollView> createState() =>
+      _HorizontalWheelScrollViewState();
 }
 
-class _HorizontalWheelScrollViewState extends State<_HorizontalWheelScrollView> {
+class _HorizontalWheelScrollViewState
+    extends State<_HorizontalWheelScrollView> {
   final ScrollController _controller = ScrollController();
 
   @override
@@ -779,9 +964,9 @@ class _HorizontalDragScrollBehavior extends MaterialScrollBehavior {
 
   @override
   Set<PointerDeviceKind> get dragDevices => {
-        ...super.dragDevices,
-        PointerDeviceKind.mouse,
-      };
+    ...super.dragDevices,
+    PointerDeviceKind.mouse,
+  };
 }
 
 class _PromotionBadge extends StatelessWidget {
@@ -800,13 +985,13 @@ class _PromotionBadge extends StatelessWidget {
     final color = isWarning
         ? AppTheme.amber
         : isAccent
-            ? AppTheme.secondary
-            : AppTheme.primary;
+        ? AppTheme.secondary
+        : AppTheme.primary;
     final background = isWarning
         ? const Color(0xFFFFF7E6)
         : isAccent
-            ? AppTheme.softGreen
-            : AppTheme.softBlue;
+        ? AppTheme.softGreen
+        : AppTheme.softBlue;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -858,7 +1043,11 @@ class _PromoCodeBox extends StatelessWidget {
             onPressed: onCopy,
             icon: const Icon(Icons.copy_rounded, size: 18),
             label: Text(
-              AppStrings.select(en: 'Copy', ru: 'Копировать', uz: 'Nusxalash'),
+              AppStrings.select(
+                en: 'Copy',
+                ru: 'РљРѕРїРёСЂРѕРІР°С‚СЊ',
+                uz: 'Nusxalash',
+              ),
             ),
           ),
         ],
@@ -875,7 +1064,8 @@ class _DeadlineLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final local = validUntil.toLocal();
-    final date = '${local.day.toString().padLeft(2, '0')}.${local.month.toString().padLeft(2, '0')}.${local.year}';
+    final date =
+        '${local.day.toString().padLeft(2, '0')}.${local.month.toString().padLeft(2, '0')}.${local.year}';
 
     return Row(
       children: [
@@ -885,7 +1075,7 @@ class _DeadlineLine extends StatelessWidget {
           child: Text(
             AppStrings.select(
               en: 'Valid until $date',
-              ru: 'Действует до $date',
+              ru: 'Р”РµР№СЃС‚РІСѓРµС‚ РґРѕ $date',
               uz: '$date gacha amal qiladi',
             ),
             style: const TextStyle(
@@ -953,7 +1143,11 @@ class _PromotionStatusCard extends StatelessWidget {
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
             label: Text(
-              AppStrings.select(en: 'Refresh', ru: 'Обновить', uz: 'Yangilash'),
+              AppStrings.select(
+                en: 'Refresh',
+                ru: 'РћР±РЅРѕРІРёС‚СЊ',
+                uz: 'Yangilash',
+              ),
             ),
           ),
         ],

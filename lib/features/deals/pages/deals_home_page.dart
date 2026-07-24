@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/app_theme.dart';
 import '../../../shared/widgets/discount_hub_logo.dart';
 import '../../settings/app_strings.dart';
+import '../../settings/settings_store.dart';
 import '../data/deals_repository.dart';
 import '../models/deal.dart';
 import '../models/deal_filters.dart';
@@ -30,7 +31,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  DealFilters _filters = const DealFilters();
+  late DealFilters _filters;
   DealSort _sort = DealSort.discountHighToLow;
   String _searchText = '';
   Timer? _searchDebounce;
@@ -47,6 +48,17 @@ class _DealsHomePageState extends State<DealsHomePage> {
 
   List<String> get _platforms => _repository.getPlatforms(includeAll: true);
   List<String> get _categories => _repository.getCategories(includeAll: true);
+  List<String> get _countries {
+    final values = _repository.getShippingCountries(includeAll: true);
+    final selected = _filters.selectedCountryCode;
+    if (selected.isEmpty || values.contains(selected)) return values;
+    return <String>[
+      'All',
+      selected,
+      ...values.where((value) => value != 'All'),
+    ];
+  }
+
   List<String> get _quickCategories {
     return _categories.where((item) => item != 'All').take(5).toList();
   }
@@ -56,11 +68,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
   }
 
   DealQuery get _currentQuery {
-    return DealQuery(
-      searchText: _searchText,
-      filters: _filters,
-      sort: _sort,
-    );
+    return DealQuery(searchText: _searchText, filters: _filters, sort: _sort);
   }
 
   List<Deal> get _localFilteredDeals {
@@ -70,9 +78,9 @@ class _DealsHomePageState extends State<DealsHomePage> {
   List<Deal> get _featuredDeals {
     return _repository
         .searchDeals(
-          const DealQuery(
+          DealQuery(
             searchText: '',
-            filters: DealFilters(),
+            filters: DealFilters(shipToCountry: _filters.shipToCountry),
             sort: DealSort.discountHighToLow,
           ),
         )
@@ -82,7 +90,14 @@ class _DealsHomePageState extends State<DealsHomePage> {
   @override
   void initState() {
     super.initState();
+    final savedCountry = UserSettingsStore.marketCountryCode.value;
+    _filters = DealFilters(
+      shipToCountry: savedCountry.isEmpty ? 'All' : savedCountry,
+    );
     _repository.version.addListener(_handleRepositoryChanged);
+    UserSettingsStore.marketCountryCode.addListener(
+      _handleMarketCountryChanged,
+    );
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadServerDeals();
@@ -92,6 +107,9 @@ class _DealsHomePageState extends State<DealsHomePage> {
   @override
   void dispose() {
     _repository.version.removeListener(_handleRepositoryChanged);
+    UserSettingsStore.marketCountryCode.removeListener(
+      _handleMarketCountryChanged,
+    );
     _scrollController.removeListener(_handleScroll);
     _searchDebounce?.cancel();
     _searchController.dispose();
@@ -107,6 +125,16 @@ class _DealsHomePageState extends State<DealsHomePage> {
     // owns pagination and a restart can turn the UI back into a cached first
     // page of 80 items while a server request is still in flight.
     setState(() {});
+  }
+
+  void _handleMarketCountryChanged() {
+    if (!mounted) return;
+    final code = UserSettingsStore.marketCountryCode.value;
+    if (_filters.selectedCountryCode == code) return;
+    setState(() {
+      _filters = _filters.copyWith(shipToCountry: code.isEmpty ? 'All' : code);
+    });
+    _loadServerDeals();
   }
 
   void _handleScroll() {
@@ -130,6 +158,7 @@ class _DealsHomePageState extends State<DealsHomePage> {
           initialFilters: _filters,
           platforms: _platforms,
           categories: _categories,
+          countries: _countries,
           initialSort: _sort,
           maxAvailablePrice: _repository.maxAvailablePrice,
           facets: _repository.facets,
@@ -142,6 +171,10 @@ class _DealsHomePageState extends State<DealsHomePage> {
       _filters = result.filters;
       _sort = result.sort;
     });
+    await UserSettingsStore.setMarketCountryCode(
+      result.filters.selectedCountryCode,
+    );
+    if (!mounted) return;
     _loadServerDeals();
   }
 
@@ -158,8 +191,12 @@ class _DealsHomePageState extends State<DealsHomePage> {
     });
   }
 
-  Future<void> _loadServerDeals({bool silent = false, bool reset = true}) async {
-    if (!reset && (_isLoadingMore || _isServerLoading || !_hasMoreServerDeals)) {
+  Future<void> _loadServerDeals({
+    bool silent = false,
+    bool reset = true,
+  }) async {
+    if (!reset &&
+        (_isLoadingMore || _isServerLoading || !_hasMoreServerDeals)) {
       return;
     }
 
@@ -268,11 +305,13 @@ class _DealsHomePageState extends State<DealsHomePage> {
     _loadServerDeals();
   }
 
-  void _clearFilters() {
+  Future<void> _clearFilters() async {
     setState(() {
       _filters = const DealFilters();
       _sort = DealSort.discountHighToLow;
     });
+    await UserSettingsStore.setMarketCountryCode('');
+    if (!mounted) return;
     _loadServerDeals();
   }
 
@@ -315,7 +354,9 @@ class _DealsHomePageState extends State<DealsHomePage> {
           controller: _scrollController,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
-            SliverToBoxAdapter(child: _HomeHeader(onRefresh: _repository.refresh)),
+            SliverToBoxAdapter(
+              child: _HomeHeader(onRefresh: _repository.refresh),
+            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
@@ -347,13 +388,16 @@ class _DealsHomePageState extends State<DealsHomePage> {
                       selectedCategories: _filters.selectedCategories.toSet(),
                       onSelected: _selectCategory,
                     ),
-                    if (_filters.hasActiveFilters || _searchText.trim().isNotEmpty) ...[
+                    if (_filters.hasActiveFilters ||
+                        _searchText.trim().isNotEmpty) ...[
                       const SizedBox(height: 14),
                       _ClearBar(
-                        onClearFilters:
-                            _filters.hasActiveFilters ? _clearFilters : null,
-                        onClearSearch:
-                            _searchText.trim().isNotEmpty ? _clearSearch : null,
+                        onClearFilters: _filters.hasActiveFilters
+                            ? _clearFilters
+                            : null,
+                        onClearSearch: _searchText.trim().isNotEmpty
+                            ? _clearSearch
+                            : null,
                       ),
                     ],
                     const SizedBox(height: 18),
@@ -393,7 +437,8 @@ class _DealsHomePageState extends State<DealsHomePage> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
                 sliver: SliverList.separated(
                   itemCount: deals.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 14),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final deal = deals[index];
                     return DealCard(
@@ -421,7 +466,6 @@ class _DealsHomePageState extends State<DealsHomePage> {
     );
   }
 }
-
 
 class _PagingFooter extends StatelessWidget {
   const _PagingFooter({
@@ -559,22 +603,22 @@ class _HeroBanner extends StatelessWidget {
   final Deal? featuredDeal;
 
   String get _title => AppStrings.select(
-        en: 'Top brands.\nReal savings.',
-        ru: 'Топ-бренды.\nБольше выгоды.',
-        uz: 'Top brendlar.\nKo‘proq foyda.',
-      );
+    en: 'Top brands.\nReal savings.',
+    ru: 'Топ-бренды.\nБольше выгоды.',
+    uz: 'Top brendlar.\nKo‘proq foyda.',
+  );
 
   String get _subtitle => AppStrings.select(
-        en: 'Verified marketplace deals collected in one clean feed',
-        ru: 'Реальные скидки с маркетплейсов и онлайн-магазинов',
-        uz: 'Turli bozorlardagi real takliflar bir lentada',
-      );
+    en: 'Verified marketplace deals collected in one clean feed',
+    ru: 'Реальные скидки с маркетплейсов и онлайн-магазинов',
+    uz: 'Turli bozorlardagi real takliflar bir lentada',
+  );
 
   String get _caption => AppStrings.select(
-        en: 'Browse deals',
-        ru: 'Смотреть скидки',
-        uz: 'Chegirmalarni ko‘rish',
-      );
+    en: 'Browse deals',
+    ru: 'Смотреть скидки',
+    uz: 'Chegirmalarni ko‘rish',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -962,9 +1006,7 @@ class _HeaderActionButton extends StatelessWidget {
             icon: Icon(icon),
             tooltip: tooltip,
             color: AppTheme.text,
-            style: IconButton.styleFrom(
-              minimumSize: const Size(52, 52),
-            ),
+            style: IconButton.styleFrom(minimumSize: const Size(52, 52)),
           ),
         ),
         if (badgeCount > 0)
@@ -994,10 +1036,7 @@ class _HeaderActionButton extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.count,
-  });
+  const _SectionTitle({required this.title, required this.count});
 
   final String title;
   final int count;
@@ -1033,10 +1072,7 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ClearBar extends StatelessWidget {
-  const _ClearBar({
-    required this.onClearFilters,
-    required this.onClearSearch,
-  });
+  const _ClearBar({required this.onClearFilters, required this.onClearSearch});
 
   final VoidCallback? onClearFilters;
   final VoidCallback? onClearSearch;

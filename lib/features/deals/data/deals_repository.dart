@@ -160,18 +160,13 @@ class DealsRepository {
         final apiDataSource = ApiDealsDataSource(apiClient: apiClient);
 
         await apiDataSource.refresh(
-          const DealApiQuery(
-            currency: '',
-            pageSize: _initialApiPageSize,
-          ),
+          const DealApiQuery(currency: '', pageSize: _initialApiPageSize),
         );
 
         final deals = apiDataSource.getDeals();
         if (deals.where(_isRealApiDeal).isNotEmpty) {
           try {
-            _facets = await apiClient.getFacets(
-              const DealApiQuery(),
-            );
+            _facets = await apiClient.getFacets(const DealApiQuery());
             _facetsLoadedAt = DateTime.now();
           } catch (error) {
             debugPrint('DiscountHub facets failed: $baseUrl -> $error');
@@ -320,13 +315,12 @@ class DealsRepository {
           DealApiQuery.fromDealQuery(
             query,
             currency: '',
-          ).copyWith(
-            page: normalizedPage,
-            pageSize: normalizedPageSize,
-          ),
+          ).copyWith(page: normalizedPage, pageSize: normalizedPageSize),
         );
 
-        final realDeals = apiPage.deals.where(_isRealApiDeal).toList(growable: false);
+        final realDeals = apiPage.deals
+            .where(_isRealApiDeal)
+            .toList(growable: false);
         _rememberApiDeals(realDeals);
         _activeSourceLabel = 'API';
 
@@ -334,12 +328,15 @@ class DealsRepository {
         // currently loaded page. This is important after large Awin imports:
         // the first page may contain 36 AliExpress products, while the full
         // catalogue still contains thousands of AliExpress and eBay deals.
-        final shouldRefreshFacets = normalizedPage == 1 && _shouldRefreshFacets(
-          minimumTotal: apiPage.totalCount,
-        );
+        final shouldRefreshFacets =
+            normalizedPage == 1 &&
+            _shouldRefreshFacets(minimumTotal: apiPage.totalCount);
         if (shouldRefreshFacets) {
           final latestFacets = await _loadFacetsFromClient(apiClient);
-          if (_shouldUseFacets(latestFacets, minimumTotal: apiPage.totalCount)) {
+          if (_shouldUseFacets(
+            latestFacets,
+            minimumTotal: apiPage.totalCount,
+          )) {
             _facets = latestFacets;
             _facetsLoadedAt = DateTime.now();
             _bump();
@@ -367,9 +364,7 @@ class DealsRepository {
 
   Future<DealFacets> _loadFacetsFromClient(DealsApiClient apiClient) async {
     try {
-      final loadedFacets = await apiClient.getFacets(
-        const DealApiQuery(),
-      );
+      final loadedFacets = await apiClient.getFacets(const DealApiQuery());
       if (loadedFacets.hasRemoteData) return loadedFacets;
     } catch (error) {
       debugPrint('DiscountHub facets refresh failed: $error');
@@ -436,17 +431,17 @@ class DealsRepository {
 
   List<Deal> getDealsByCategory(String category) {
     return searchDeals(
-      DealQuery(
-        filters: DealFilters(categorySelections: <String>[category]),
-      ),
+      DealQuery(filters: DealFilters(categorySelections: <String>[category])),
     ).deals;
   }
 
   List<Deal> getFavoriteDeals(Set<String> ids) {
-    final deals = _dataSource.getDeals().where((deal) => ids.contains(deal.id)).toList();
+    final deals = _dataSource
+        .getDeals()
+        .where((deal) => ids.contains(deal.id))
+        .toList();
     return List<Deal>.unmodifiable(deals);
   }
-
 
   int estimateTotalForQuery(DealQuery query, {required int fallback}) {
     if (!_facets.hasRemoteData) return fallback;
@@ -455,8 +450,8 @@ class DealsRepository {
     final hasSearch = query.searchText.trim().isNotEmpty;
     if (hasSearch) return fallback;
 
-    final hasRangeOrQualityFilters = filters.minDiscount > 0 ||
-        filters.maxPrice != null;
+    final hasRangeOrQualityFilters =
+        filters.minDiscount > 0 || filters.maxPrice != null;
     if (hasRangeOrQualityFilters) return fallback;
 
     final selectedDimensions = <int>[
@@ -468,6 +463,8 @@ class DealsRepository {
         filters.selectedCategories
             .map(_facets.countForCategory)
             .fold<int>(0, (total, count) => total + count),
+      if (filters.hasCountryFilter)
+        _facets.countForCountry(filters.selectedCountryCode),
     ].where((count) => count > 0).toList(growable: false);
 
     if (selectedDimensions.isEmpty) {
@@ -486,7 +483,11 @@ class DealsRepository {
       return includeAll ? ['All', ...facetValues] : facetValues;
     }
 
-    final values = _dataSource.getDeals().map((deal) => deal.platform).toSet().toList();
+    final values = _dataSource
+        .getDeals()
+        .map((deal) => deal.platform)
+        .toSet()
+        .toList();
     values.sort();
     return includeAll ? ['All', ...values] : values;
   }
@@ -497,7 +498,11 @@ class DealsRepository {
       return includeAll ? ['All', ...facetValues] : facetValues;
     }
 
-    final values = _dataSource.getDeals().map((deal) => deal.category).toSet().toList();
+    final values = _dataSource
+        .getDeals()
+        .map((deal) => deal.category)
+        .toSet()
+        .toList();
     values.sort();
     return includeAll ? ['All', ...values] : values;
   }
@@ -517,11 +522,16 @@ class DealsRepository {
     return includeAll ? ['All', ...values] : values;
   }
 
-
   List<String> getDeliveryRegions({bool includeAll = false}) {
     final facetValues = _facets.deliveryRegions.map((item) => item.id).toList();
     final ordered = <String>[
-      for (final value in const <String>['global', 'cis', 'europe', 'usa', 'latam'])
+      for (final value in const <String>[
+        'global',
+        'cis',
+        'europe',
+        'usa',
+        'latam',
+      ])
         if (facetValues.contains(value)) value,
     ];
 
@@ -543,12 +553,18 @@ class DealsRepository {
   }
 
   List<String> getMonetizationModes({bool includeAll = false}) {
-    final facetValues = _facets.monetizationModes.map((item) => item.id).toList();
+    final facetValues = _facets.monetizationModes
+        .map((item) => item.id)
+        .toList();
     if (facetValues.isNotEmpty) {
       return includeAll ? ['All', ...facetValues] : facetValues;
     }
 
-    final values = _dataSource.getDeals().map((deal) => deal.monetizationMode).toSet().toList();
+    final values = _dataSource
+        .getDeals()
+        .map((deal) => deal.monetizationMode)
+        .toSet()
+        .toList();
     values.sort();
     return includeAll ? ['All', ...values] : values;
   }
@@ -556,7 +572,10 @@ class DealsRepository {
   int countByCategory(String category) {
     final facetCount = _facets.countForCategory(category);
     if (facetCount > 0) return facetCount;
-    return _dataSource.getDeals().where((deal) => deal.category == category).length;
+    return _dataSource
+        .getDeals()
+        .where((deal) => deal.category == category)
+        .length;
   }
 
   int countByPlatform(String platform) {
@@ -564,18 +583,27 @@ class DealsRepository {
     if (facetCount > 0) return facetCount;
     return _dataSource
         .getDeals()
-        .where((deal) => _publicMarketplaceLabel(deal.platform) == _publicMarketplaceLabel(platform))
+        .where(
+          (deal) =>
+              _publicMarketplaceLabel(deal.platform) ==
+              _publicMarketplaceLabel(platform),
+        )
         .length;
   }
 
   int countByMonetizationMode(String mode) {
     final facetCount = _facets.countForMonetizationMode(mode);
     if (facetCount > 0) return facetCount;
-    return _dataSource.getDeals().where((deal) => deal.monetizationMode == mode).length;
+    return _dataSource
+        .getDeals()
+        .where((deal) => deal.monetizationMode == mode)
+        .length;
   }
 
   double get maxAvailablePrice {
-    if (_facets.priceRange.max > 0) return _facets.priceRange.max.ceilToDouble();
+    if (_facets.priceRange.max > 0) {
+      return _facets.priceRange.max.ceilToDouble();
+    }
 
     final deals = _dataSource.getDeals();
     if (deals.isEmpty) return 1;
@@ -586,7 +614,6 @@ class DealsRepository {
 
     return maxPrice.ceilToDouble();
   }
-
 
   String _publicMarketplaceLabel(String value) {
     final normalized = value.trim().toLowerCase();
@@ -601,12 +628,17 @@ class DealsRepository {
     final query = searchText.trim().toLowerCase();
     if (query.isEmpty) return true;
 
-    final localizedTitle = AppStrings.demoDealTitle(deal.id, deal.title).toLowerCase();
+    final localizedTitle = AppStrings.demoDealTitle(
+      deal.id,
+      deal.title,
+    ).toLowerCase();
     final localizedDescription = AppStrings.demoDealDescription(
       deal.id,
       deal.description,
     ).toLowerCase();
-    final localizedCategory = AppStrings.categoryName(deal.category).toLowerCase();
+    final localizedCategory = AppStrings.categoryName(
+      deal.category,
+    ).toLowerCase();
 
     return localizedTitle.contains(query) ||
         localizedDescription.contains(query) ||
@@ -616,26 +648,42 @@ class DealsRepository {
         deal.platform.toLowerCase().contains(query) ||
         deal.category.toLowerCase().contains(query) ||
         deal.shipsTo.any((country) => country.toLowerCase().contains(query)) ||
-        deal.deliveryRegions.any((region) => region.toLowerCase().contains(query));
+        deal.deliveryRegions.any(
+          (region) => region.toLowerCase().contains(query),
+        );
   }
 
   bool _matchesFilters(Deal deal, DealFilters filters) {
-    if (!deal.hasRealDiscount) return false;
+    if (!deal.hasRealDiscount) {
+      return false;
+    }
 
     final selectedPlatforms = filters.selectedPlatforms
         .map(_publicMarketplaceLabel)
         .toSet();
     final selectedCategories = filters.selectedCategories.toSet();
+    final countryCode = filters.selectedCountryCode;
 
-    final matchesPlatform = selectedPlatforms.isEmpty ||
+    final matchesPlatform =
+        selectedPlatforms.isEmpty ||
         selectedPlatforms.contains(_publicMarketplaceLabel(deal.platform));
-    final matchesCategory = selectedCategories.isEmpty ||
+    final matchesCategory =
+        selectedCategories.isEmpty ||
         selectedCategories.contains(deal.category);
+    final countryValues = deal.availabilityCountries.isNotEmpty
+        ? deal.availabilityCountries
+        : deal.shipsTo;
+    final matchesCountry =
+        countryCode.isEmpty ||
+        deal.isGlobal ||
+        countryValues.any((value) => value.trim().toUpperCase() == countryCode);
     final matchesDiscount = deal.discountPercent >= filters.minDiscount;
-    final matchesPrice = filters.maxPrice == null || deal.currentPrice <= filters.maxPrice!;
+    final matchesPrice =
+        filters.maxPrice == null || deal.currentPrice <= filters.maxPrice!;
 
     return matchesPlatform &&
         matchesCategory &&
+        matchesCountry &&
         matchesDiscount &&
         matchesPrice;
   }
@@ -652,8 +700,10 @@ class DealsRepository {
         break;
       case DealSort.newest:
         sorted.sort((a, b) {
-          final aUpdated = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bUpdated = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final aUpdated =
+              a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final bUpdated =
+              b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
           return bUpdated.compareTo(aUpdated);
         });
         break;
