@@ -32,6 +32,8 @@ class Promotion(ApiModel):
     image_url: str | None = None
     provider_id: str | None = None
     monetization_mode: DealMonetizationMode = "affiliate"
+    availability_countries: list[str] = Field(default_factory=list)
+    is_global: bool = False
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     featured: bool = False
@@ -51,6 +53,8 @@ class PromotionResponse(ApiModel):
     image_url: str | None = None
     provider_id: str | None = None
     monetization_mode: DealMonetizationMode = "affiliate"
+    availability_countries: list[str] = Field(default_factory=list)
+    is_global: bool = False
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     featured: bool = False
@@ -78,10 +82,24 @@ class PromotionUpsertRequest(ApiModel):
     image_url: str | None = None
     provider_id: str | None = None
     monetization_mode: DealMonetizationMode | None = None
+    availability_countries: list[str] = Field(default_factory=list)
+    is_global: bool | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     featured: bool = False
     updated_at: datetime | None = None
+
+
+class PromotionFacetItem(ApiModel):
+    id: str
+    name: str
+    count: int
+
+
+class PromotionCountriesResponse(ApiModel):
+    items: list[PromotionFacetItem]
+    global_count: int = 0
+    generated_at: datetime
 
 
 class PromotionCleanupResponse(ApiModel):

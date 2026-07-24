@@ -4,6 +4,8 @@ import re
 
 from app.models.promotion import (
     Promotion,
+    PromotionCountriesResponse,
+    PromotionFacetItem,
     PromotionResponse,
     PromotionSort,
     PromotionType,
@@ -11,6 +13,7 @@ from app.models.promotion import (
 )
 from app.repositories.promotions_repository import PromotionsRepository
 from app.services.promotion_cleanup_service import promotion_cleanup_service
+from app.services.country_availability import infer_availability, normalize_availability
 
 
 class PromotionNotFoundError(Exception):
@@ -163,6 +166,7 @@ class PromotionsService:
         q: str | None = None,
         type: PromotionType | None = None,
         store: str | None = None,
+        country: str | None = None,
         sort: PromotionSort = "featured",
         page: int = 1,
         page_size: int = 20,
@@ -172,6 +176,7 @@ class PromotionsService:
             q=q,
             type=type,
             store=store,
+            country=country,
             sort=sort,
             page=page,
             page_size=page_size,
@@ -197,6 +202,25 @@ class PromotionsService:
         promotion_cleanup_service.cleanup_if_due()
         return self._repository.get_store_facets(q=q, type=type)
 
+    def get_country_facets(
+        self,
+        *,
+        q: str | None = None,
+        type: PromotionType | None = None,
+        store: str | None = None,
+    ) -> PromotionCountriesResponse:
+        promotion_cleanup_service.cleanup_if_due()
+        items, global_count = self._repository.get_country_facets(
+            q=q,
+            type=type,
+            store=store,
+        )
+        return PromotionCountriesResponse(
+            items=[PromotionFacetItem.model_validate(item) for item in items],
+            global_count=global_count,
+            generated_at=datetime.now(timezone.utc),
+        )
+
     def upsert_promotions(self, payloads: list[PromotionUpsertRequest]) -> int:
         promotions = [self._request_to_promotion(payload) for payload in payloads]
         return self._repository.upsert_many(promotions)
@@ -205,6 +229,20 @@ class PromotionsService:
         monetization_mode = payload.monetization_mode
         if monetization_mode is None:
             monetization_mode = "affiliate" if (payload.affiliate_url or "").strip() else "direct"
+
+        availability_countries, inferred_global = normalize_availability(payload.availability_countries)
+        if not availability_countries and not inferred_global:
+            availability_countries, inferred_global = infer_availability(
+                payload.store,
+                payload.provider_id,
+                payload.landing_url,
+                payload.affiliate_url,
+                payload.title,
+                payload.description,
+            )
+        is_global = inferred_global if payload.is_global is None else payload.is_global
+        if is_global:
+            availability_countries = []
 
         return Promotion(
             id=payload.id,
@@ -219,6 +257,8 @@ class PromotionsService:
             image_url=payload.image_url,
             provider_id=payload.provider_id,
             monetization_mode=monetization_mode,
+            availability_countries=availability_countries,
+            is_global=is_global,
             valid_from=payload.valid_from,
             valid_until=payload.valid_until,
             featured=payload.featured,
@@ -239,6 +279,8 @@ class PromotionsService:
             image_url=promotion.image_url,
             provider_id=promotion.provider_id,
             monetization_mode=promotion.monetization_mode,
+            availability_countries=promotion.availability_countries,
+            is_global=promotion.is_global,
             valid_from=promotion.valid_from,
             valid_until=promotion.valid_until,
             featured=promotion.featured,

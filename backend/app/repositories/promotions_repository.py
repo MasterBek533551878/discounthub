@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import json
+from collections import Counter
 from datetime import datetime, timezone
 
 from app.db.database import get_connection
 from app.models.deal import DealMonetizationMode
 from app.models.promotion import Promotion, PromotionSort, PromotionType
+from app.services.country_availability import (
+    SUPPORTED_FILTER_COUNTRIES,
+    country_name,
+    normalize_country_code,
+)
 
 
 SQL_ACTIVE_PROMOTION_ONLY = """
@@ -22,11 +29,12 @@ class PromotionsRepository:
         q: str | None = None,
         type: PromotionType | None = None,
         store: str | None = None,
+        country: str | None = None,
         sort: PromotionSort = "featured",
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[Promotion], int]:
-        where_sql, params = self._build_filter_sql(q=q, type=type, store=store)
+        where_sql, params = self._build_filter_sql(q=q, type=type, store=store, country=country)
         order_sql = self._sort_sql(sort)
         offset = max(page - 1, 0) * page_size
 
@@ -69,7 +77,7 @@ class PromotionsRepository:
         q: str | None = None,
         type: PromotionType | None = None,
     ) -> list[dict[str, object]]:
-        where_sql, params = self._build_filter_sql(q=q, type=type, store=None)
+        where_sql, params = self._build_filter_sql(q=q, type=type, store=None, country=None)
 
         with get_connection() as connection:
             rows = connection.execute(
@@ -94,6 +102,59 @@ class PromotionsRepository:
             for row in rows
         ]
 
+    def get_country_facets(
+        self,
+        *,
+        q: str | None = None,
+        type: PromotionType | None = None,
+        store: str | None = None,
+    ) -> tuple[list[dict[str, object]], int]:
+        where_sql, params = self._build_filter_sql(
+            q=q,
+            type=type,
+            store=store,
+            country=None,
+        )
+        with get_connection() as connection:
+            rows = connection.execute(
+                f"SELECT availability_countries, is_global FROM promotions {where_sql}",
+                params,
+            ).fetchall()
+
+        explicit: Counter[str] = Counter()
+        global_count = 0
+        for row in rows:
+            if bool(row["is_global"]):
+                global_count += 1
+            try:
+                values = json.loads(row["availability_countries"] or "[]")
+            except json.JSONDecodeError:
+                values = []
+            if not isinstance(values, list):
+                continue
+            for value in values:
+                code = normalize_country_code(value)
+                if code:
+                    explicit[code] += 1
+
+        candidates = set(explicit)
+        if global_count:
+            candidates.update(SUPPORTED_FILTER_COUNTRIES)
+        ranked = sorted(
+            candidates,
+            key=lambda code: (-(explicit[code] + global_count), country_name(code), code),
+        )
+        items = [
+            {
+                "id": code,
+                "name": country_name(code),
+                "count": explicit[code] + global_count,
+            }
+            for code in ranked[:200]
+            if explicit[code] + global_count > 0
+        ]
+        return items, global_count
+
     def upsert_many(self, promotions: list[Promotion]) -> int:
         if not promotions:
             return 0
@@ -105,13 +166,13 @@ class PromotionsRepository:
                 INSERT INTO promotions (
                     id, type, title, description, store, discount_text, code,
                     landing_url, affiliate_url, image_url, provider_id,
-                    monetization_mode, valid_from, valid_until, featured,
-                    updated_at, search_text
+                    monetization_mode, availability_countries, is_global,
+                    valid_from, valid_until, featured, updated_at, search_text
                 ) VALUES (
                     :id, :type, :title, :description, :store, :discount_text, :code,
                     :landing_url, :affiliate_url, :image_url, :provider_id,
-                    :monetization_mode, :valid_from, :valid_until, :featured,
-                    :updated_at, :search_text
+                    :monetization_mode, :availability_countries, :is_global,
+                    :valid_from, :valid_until, :featured, :updated_at, :search_text
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     type = excluded.type,
@@ -125,6 +186,8 @@ class PromotionsRepository:
                     image_url = excluded.image_url,
                     provider_id = excluded.provider_id,
                     monetization_mode = excluded.monetization_mode,
+                    availability_countries = excluded.availability_countries,
+                    is_global = excluded.is_global,
                     valid_from = excluded.valid_from,
                     valid_until = excluded.valid_until,
                     featured = excluded.featured,
@@ -184,6 +247,7 @@ class PromotionsRepository:
         q: str | None,
         type: PromotionType | None,
         store: str | None,
+        country: str | None,
     ) -> tuple[str, tuple[object, ...]]:
         clauses = [SQL_ACTIVE_PROMOTION_ONLY]
         params: list[object] = []
@@ -201,6 +265,11 @@ class PromotionsRepository:
             placeholders = ", ".join("?" for _ in store_values)
             clauses.append(f"LOWER(TRIM(store)) IN ({placeholders})")
             params.extend(value.lower() for value in store_values)
+
+        country_code = normalize_country_code(country)
+        if country_code:
+            clauses.append("(is_global = 1 OR availability_countries LIKE ?)")
+            params.append(f'%"{country_code}"%')
 
         return f"WHERE {' AND '.join(clauses)}", tuple(params)
 
@@ -263,6 +332,8 @@ class PromotionsRepository:
             "image_url": promotion.image_url,
             "provider_id": promotion.provider_id,
             "monetization_mode": promotion.monetization_mode,
+            "availability_countries": json.dumps(promotion.availability_countries),
+            "is_global": 1 if promotion.is_global else 0,
             "valid_from": self._datetime_to_iso(promotion.valid_from),
             "valid_until": self._datetime_to_iso(promotion.valid_until),
             "featured": 1 if promotion.featured else 0,
@@ -271,6 +342,16 @@ class PromotionsRepository:
         }
 
     def _row_to_promotion(self, row) -> Promotion:
+        try:
+            raw_countries = json.loads(row["availability_countries"] or "[]")
+        except json.JSONDecodeError:
+            raw_countries = []
+        if not isinstance(raw_countries, list):
+            raw_countries = []
+        countries = [
+            code for item in raw_countries if (code := normalize_country_code(item))
+        ]
+
         return Promotion(
             id=str(row["id"]),
             type=str(row["type"]),
@@ -284,6 +365,8 @@ class PromotionsRepository:
             image_url=row["image_url"],
             provider_id=row["provider_id"],
             monetization_mode=str(row["monetization_mode"] or "affiliate"),
+            availability_countries=countries,
+            is_global=bool(row["is_global"]),
             valid_from=self._parse_datetime(row["valid_from"]),
             valid_until=self._parse_datetime(row["valid_until"]),
             featured=bool(row["featured"]),

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.services.admitad_deeplink_service import admitad_deeplink_service
+from app.services.country_availability import normalize_availability
 
 from fastapi import HTTPException, status
 
@@ -255,6 +256,17 @@ class FeedAdapterService:
         external_id = self._pick_string(item, "aw_product_id", "merchant_product_id", "product_id", "sku", "id") or self._stable_id(item, prefix="awin")
         item_id = self._safe_key(f"{merchant_id}_{external_id}") or self._stable_id(item, prefix="awin")
         discount = ((old - current) / old) if old > 0 else 0
+        availability_countries, is_global = normalize_availability(
+            self._pick_list(
+                item,
+                "availability_countries",
+                "country_codes",
+                "region_codes",
+                "_awin_feed_region",
+            )
+        )
+        if is_global:
+            availability_countries = []
 
         return {
             "id": f"awin_{item_id}",
@@ -272,7 +284,9 @@ class FeedAdapterService:
             "reviewCount": int(self._pick_number(item, "review_count", "reviews") or 0),
             "freeShipping": self._pick_bool(item, "free_shipping", "free_delivery", "delivery_free"),
             "verified": True,
-            "shipsTo": self._pick_list(item, "ships_to", "countries", "shipping_countries", "_awin_feed_region"),
+            "shipsTo": self._pick_list(item, "ships_to", "shipping_countries"),
+            "availabilityCountries": availability_countries,
+            "isGlobal": is_global,
             "hotDeal": discount >= 0.3,
             "lowestPrice": self._pick_bool(item, "lowest_price", "lowestPrice", "best_price"),
         }

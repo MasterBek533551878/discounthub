@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
 from app.core.config import get_settings
+from app.services.country_availability import infer_availability, normalize_availability
 
 SQL_PERF_RATE_CASE = """
 CASE UPPER(currency)
@@ -101,6 +103,94 @@ def _ensure_column(connection: sqlite3.Connection, *, table: str, column: str, d
         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
+def _parse_json_list(value: object) -> list[object]:
+    if value is None:
+        return []
+    try:
+        parsed = json.loads(str(value))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _backfill_deal_availability(connection: sqlite3.Connection) -> None:
+    rows = connection.execute(
+        """
+        SELECT id, ships_to, delivery_regions, platform, provider_id, product_url, affiliate_url
+        FROM deals
+        WHERE (availability_countries IS NULL OR TRIM(availability_countries) IN ('', '[]'))
+          AND COALESCE(is_global, 0) = 0
+        """
+    ).fetchall()
+
+    updates: list[tuple[str, int, str]] = []
+    for row in rows:
+        countries, is_global = normalize_availability(_parse_json_list(row["ships_to"]))
+        source_values = (
+            row["platform"],
+            row["provider_id"],
+            row["product_url"],
+            row["affiliate_url"],
+        )
+        inferred_countries, inferred_global = infer_availability(*source_values)
+        if not countries and not is_global:
+            region_countries, region_global = normalize_availability(
+                _parse_json_list(row["delivery_regions"])
+            )
+            if region_countries:
+                countries = region_countries
+            elif region_global and inferred_global:
+                # Older builds assigned ["global"] to unknown providers as a
+                # fallback. Trust it only when the source itself is recognizable
+                # as global; otherwise leave availability unknown and safe.
+                is_global = True
+        if not countries:
+            countries = inferred_countries
+        is_global = is_global or inferred_global
+        if is_global:
+            countries = []
+        if countries or is_global:
+            updates.append((json.dumps(countries), 1 if is_global else 0, str(row["id"])))
+
+    if updates:
+        connection.executemany(
+            "UPDATE deals SET availability_countries = ?, is_global = ? WHERE id = ?",
+            updates,
+        )
+
+
+def _backfill_promotion_availability(connection: sqlite3.Connection) -> None:
+    rows = connection.execute(
+        """
+        SELECT id, store, provider_id, landing_url, affiliate_url, title, description
+        FROM promotions
+        WHERE (availability_countries IS NULL OR TRIM(availability_countries) IN ('', '[]'))
+          AND COALESCE(is_global, 0) = 0
+        """
+    ).fetchall()
+
+    updates: list[tuple[str, int, str]] = []
+    for row in rows:
+        countries, is_global = infer_availability(
+            row["store"],
+            row["provider_id"],
+            row["landing_url"],
+            row["affiliate_url"],
+            row["title"],
+            row["description"],
+        )
+        if is_global:
+            countries = []
+        if countries or is_global:
+            updates.append((json.dumps(countries), 1 if is_global else 0, str(row["id"])))
+
+    if updates:
+        connection.executemany(
+            "UPDATE promotions SET availability_countries = ?, is_global = ? WHERE id = ?",
+            updates,
+        )
+
+
 def _ensure_deals_migrations(connection: sqlite3.Connection) -> None:
     _ensure_column(
         connection,
@@ -120,6 +210,18 @@ def _ensure_deals_migrations(connection: sqlite3.Connection) -> None:
         table="deals",
         column="delivery_regions",
         definition="TEXT NOT NULL DEFAULT '[]'",
+    )
+    _ensure_column(
+        connection,
+        table="deals",
+        column="availability_countries",
+        definition="TEXT NOT NULL DEFAULT '[]'",
+    )
+    _ensure_column(
+        connection,
+        table="deals",
+        column="is_global",
+        definition="INTEGER NOT NULL DEFAULT 0",
     )
 
     # Backfill delivery-region buckets without reading any user location. These
@@ -151,6 +253,7 @@ def _ensure_deals_migrations(connection: sqlite3.Connection) -> None:
            OR TRIM(delivery_regions) = '[]'
         """
     )
+    _backfill_deal_availability(connection)
 
     # Existing rows from older builds did not know whether a link was affiliate/direct.
     # Use affiliate_url as the safest backwards-compatible signal.
@@ -262,6 +365,19 @@ def _ensure_promotions_migrations(connection: sqlite3.Connection) -> None:
         column="search_text",
         definition="TEXT NOT NULL DEFAULT ''",
     )
+    _ensure_column(
+        connection,
+        table="promotions",
+        column="availability_countries",
+        definition="TEXT NOT NULL DEFAULT '[]'",
+    )
+    _ensure_column(
+        connection,
+        table="promotions",
+        column="is_global",
+        definition="INTEGER NOT NULL DEFAULT 0",
+    )
+    _backfill_promotion_availability(connection)
     connection.execute(
         """
         UPDATE promotions

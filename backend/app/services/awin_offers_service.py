@@ -14,6 +14,7 @@ from fastapi import HTTPException, status
 from app.core.config import get_settings
 from app.models.promotion import AwinPromotionSyncRequest, PromotionUpsertRequest
 from app.services.restricted_offer_filter import restricted_offer_match
+from app.services.country_availability import infer_availability, normalize_availability
 
 
 class AwinOffersService:
@@ -238,6 +239,13 @@ class AwinOffersService:
 
         featured = promo_type == "coupon" or self._discount_number(discount_text) >= 30
         provider_suffix = str(advertiser_id).strip() if advertiser_id is not None and str(advertiser_id).strip() else "unknown"
+        availability_countries, is_global = self._availability_from_item(
+            item=item,
+            advertiser=advertiser,
+            store=store,
+            landing_url=landing_url,
+            affiliate_url=affiliate_url,
+        )
 
         return PromotionUpsertRequest(
             id=f"awin:{promotion_id}",
@@ -252,10 +260,54 @@ class AwinOffersService:
             image_url=image_url,
             provider_id=f"awin_offers_{provider_suffix}",
             monetization_mode="affiliate",
+            availability_countries=availability_countries,
+            is_global=is_global,
             valid_from=start_date,
             valid_until=end_date,
             featured=featured,
             updated_at=added_date or now,
+        )
+
+    def _availability_from_item(
+        self,
+        *,
+        item: dict[str, Any],
+        advertiser: dict[str, Any],
+        store: str,
+        landing_url: str | None,
+        affiliate_url: str | None,
+    ) -> tuple[list[str], bool]:
+        candidate_values: list[Any] = []
+        keys = (
+            "regionCodes",
+            "region_codes",
+            "regions",
+            "region",
+            "countryCodes",
+            "country_codes",
+            "countries",
+            "country",
+            "markets",
+            "market",
+            "territories",
+        )
+        for source in (item, advertiser):
+            for key in keys:
+                value = self._first_value(source, key)
+                if value is not None:
+                    candidate_values.append(value)
+
+        countries, is_global = normalize_availability(candidate_values)
+        if is_global:
+            return [], True
+        if countries:
+            return countries, False
+
+        return infer_availability(
+            store,
+            landing_url,
+            affiliate_url,
+            self._first_string(item, "title", "name"),
         )
 
     def _repair_tracking_url(

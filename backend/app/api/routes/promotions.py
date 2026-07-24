@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.models.promotion import (
+    PromotionCountriesResponse,
     PromotionsPage,
     PromotionResponse,
     PromotionSort,
@@ -112,6 +113,7 @@ def list_promotions(
     q: str | None = None,
     type: PromotionType | None = None,
     store: str | None = None,
+    country: str | None = None,
     sort: PromotionSort = "featured",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
@@ -120,6 +122,7 @@ def list_promotions(
         q=q,
         type=type,
         store=store,
+        country=country,
         sort=sort,
         page=page,
         page_size=page_size,
@@ -140,6 +143,19 @@ def promotion_stores(
     type: PromotionType | None = None,
 ) -> dict[str, list[dict[str, object]]]:
     return {"items": promotions_service.get_store_facets(q=q, type=type)}
+
+
+@router.get(
+    "/promotions/countries",
+    response_model=PromotionCountriesResponse,
+    response_model_by_alias=True,
+)
+def promotion_countries(
+    q: str | None = None,
+    type: PromotionType | None = None,
+    store: str | None = None,
+) -> PromotionCountriesResponse:
+    return promotions_service.get_country_facets(q=q, type=type, store=store)
 
 
 @router.get("/promotions/{promotion_id}", response_model=PromotionResponse, response_model_by_alias=True)

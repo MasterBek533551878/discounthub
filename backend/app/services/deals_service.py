@@ -15,6 +15,7 @@ from app.models.deal import (
 )
 from app.repositories.deals_repository import DealsRepository
 from app.services.category_normalizer import normalize_category
+from app.services.country_availability import infer_availability, normalize_availability
 
 # Demo rates only. Production must use a real exchange-rate source.
 DEMO_RATES: dict[str, float] = {
@@ -81,6 +82,7 @@ class DealsService:
         q: str | None = None,
         platform: str | None = None,
         category: str | None = None,
+        country: str | None = None,
         ships_to: str | None = None,
         delivery_region: str | None = None,
         currency: str = "USD",
@@ -101,6 +103,7 @@ class DealsService:
             q=q,
             platform=platform,
             category=normalized_category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             currency=currency.upper().strip() or "USD",
@@ -126,6 +129,7 @@ class DealsService:
             q=q,
             platform=platform,
             category=normalized_category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             min_discount=min_discount,
@@ -155,6 +159,7 @@ class DealsService:
         q: str | None = None,
         platform: str | None = None,
         category: str | None = None,
+        country: str | None = None,
         ships_to: str | None = None,
         delivery_region: str | None = None,
         currency: str = "USD",
@@ -173,6 +178,7 @@ class DealsService:
             q=q,
             platform=platform,
             category=normalized_category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             currency=target_currency,
@@ -198,6 +204,7 @@ class DealsService:
             q=q,
             platform=platform,
             category=normalized_category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             min_discount=min_discount,
@@ -222,6 +229,7 @@ class DealsService:
                 q=q,
                 platform=platform,
                 category=normalized_category,
+                country=country,
                 ships_to=ships_to,
                 delivery_region=delivery_region,
                 min_discount=min_discount,
@@ -251,6 +259,7 @@ class DealsService:
             total=int(raw["total"]),
             marketplaces=self._to_facet_items(raw["marketplaces"]),
             categories=self._to_facet_items(raw["categories"]),
+            countries=self._to_facet_items(raw.get("countries", raw.get("shipping_countries", []))),
             shipping_countries=self._to_facet_items(raw["shipping_countries"]),
             delivery_regions=self._to_facet_items(raw["delivery_regions"]),
             currencies=self._to_facet_items(raw["currencies"]),
@@ -407,6 +416,8 @@ class DealsService:
             free_shipping=deal.free_shipping,
             verified=deal.verified,
             ships_to=deal.ships_to,
+            availability_countries=deal.availability_countries,
+            is_global=deal.is_global,
             delivery_regions=deal.delivery_regions,
             hot_deal=deal.hot_deal,
             lowest_price=deal.lowest_price,
@@ -426,6 +437,21 @@ class DealsService:
         if monetization_mode is None:
             monetization_mode = "affiliate" if affiliate_url and affiliate_url != product_url else "direct"
 
+        shipping_countries, _ = normalize_availability(payload.ships_to)
+        availability_countries, inferred_global = normalize_availability(payload.availability_countries)
+        if not availability_countries and not inferred_global:
+            availability_countries, inferred_global = infer_availability(
+                payload.ships_to,
+                payload.delivery_regions,
+                payload.platform,
+                payload.provider_id,
+                product_url,
+                affiliate_url,
+            )
+        is_global = inferred_global if payload.is_global is None else payload.is_global
+        if is_global:
+            availability_countries = []
+
         return Deal(
             id=payload.id.strip(),
             title=payload.title.strip(),
@@ -444,7 +470,9 @@ class DealsService:
             review_count=int(payload.review_count),
             free_shipping=payload.free_shipping,
             verified=payload.verified,
-            ships_to=[item.upper().strip() for item in payload.ships_to if item.strip()],
+            ships_to=shipping_countries,
+            availability_countries=availability_countries,
+            is_global=is_global,
             delivery_regions=[item.lower().strip() for item in payload.delivery_regions if str(item).strip()],
             hot_deal=payload.hot_deal,
             lowest_price=payload.lowest_price,
@@ -527,6 +555,8 @@ class DealsService:
             free_shipping=deal.free_shipping,
             verified=deal.verified,
             ships_to=deal.ships_to,
+            availability_countries=deal.availability_countries,
+            is_global=deal.is_global,
             delivery_regions=deal.delivery_regions,
             hot_deal=deal.hot_deal,
             lowest_price=deal.lowest_price,

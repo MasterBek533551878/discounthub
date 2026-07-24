@@ -8,6 +8,11 @@ from typing import Iterable
 
 from app.db.database import get_connection
 from app.models.deal import Deal, DealMonetizationMode, DealSort
+from app.services.country_availability import (
+    SUPPORTED_FILTER_COUNTRIES,
+    country_name,
+    normalize_country_code,
+)
 
 
 SQL_RATE_CASE = """
@@ -159,6 +164,7 @@ class DealsRepository:
         q: str | None = None,
         platform: str | None = None,
         category: str | None = None,
+        country: str | None = None,
         ships_to: str | None = None,
         delivery_region: str | None = None,
         min_discount: int | None = None,
@@ -175,6 +181,7 @@ class DealsRepository:
             q=q,
             platform=platform,
             category=category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             min_discount=min_discount,
@@ -238,6 +245,7 @@ class DealsRepository:
         q: str | None = None,
         platform: str | None = None,
         category: str | None = None,
+        country: str | None = None,
         ships_to: str | None = None,
         delivery_region: str | None = None,
         min_discount: int | None = None,
@@ -251,6 +259,7 @@ class DealsRepository:
             q=q,
             platform=platform,
             category=category,
+            country=country,
             ships_to=ships_to,
             delivery_region=delivery_region,
             min_discount=min_discount,
@@ -278,6 +287,8 @@ class DealsRepository:
                         category,
                         currency,
                         monetization_mode,
+                        availability_countries,
+                        is_global,
                         delivery_regions,
                         ships_to,
                         current_price_usd,
@@ -294,6 +305,8 @@ class DealsRepository:
                         category,
                         currency,
                         monetization_mode,
+                        availability_countries,
+                        is_global,
                         delivery_regions,
                         ships_to,
                         current_price_usd,
@@ -309,6 +322,8 @@ class DealsRepository:
                     category,
                     currency,
                     monetization_mode,
+                    availability_countries,
+                    is_global,
                     delivery_regions,
                     ships_to,
                     current_price_usd,
@@ -338,6 +353,10 @@ class DealsRepository:
             currencies = self._facet_counts_from_temp(connection, "currency")
             monetization_modes = self._facet_counts_from_temp(connection, "monetization_mode")
 
+            country_rows = connection.execute(
+                "SELECT availability_countries, is_global FROM temp_facet_deals"
+            ).fetchall()
+
             delivery_region_rows = connection.execute(
                 "SELECT delivery_regions FROM temp_facet_deals"
             ).fetchall()
@@ -346,6 +365,7 @@ class DealsRepository:
                 "SELECT ships_to FROM temp_facet_deals"
             ).fetchall()
 
+        countries = self._availability_country_counts(country_rows)
         shipping_countries = self._shipping_country_counts(ships_rows)
         delivery_regions = self._delivery_region_counts(delivery_region_rows)
         total = int(total_row["total"] if total_row is not None else 0)
@@ -354,6 +374,7 @@ class DealsRepository:
             "total": total,
             "marketplaces": platforms,
             "categories": categories,
+            "countries": countries,
             "shipping_countries": shipping_countries,
             "delivery_regions": delivery_regions,
             "currencies": currencies,
@@ -529,6 +550,8 @@ class DealsRepository:
                     free_shipping,
                     verified,
                     ships_to,
+                    availability_countries,
+                    is_global,
                     delivery_regions,
                     hot_deal,
                     lowest_price,
@@ -539,7 +562,7 @@ class DealsRepository:
                     discount_percent,
                     current_price_usd,
                     search_text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
@@ -558,6 +581,8 @@ class DealsRepository:
                     free_shipping = excluded.free_shipping,
                     verified = excluded.verified,
                     ships_to = excluded.ships_to,
+                    availability_countries = excluded.availability_countries,
+                    is_global = excluded.is_global,
                     delivery_regions = excluded.delivery_regions,
                     hot_deal = excluded.hot_deal,
                     lowest_price = excluded.lowest_price,
@@ -579,6 +604,7 @@ class DealsRepository:
         q: str | None = None,
         platform: str | None = None,
         category: str | None = None,
+        country: str | None = None,
         ships_to: str | None = None,
         delivery_region: str | None = None,
         min_discount: int | None = None,
@@ -614,11 +640,16 @@ class DealsRepository:
             clauses.append(f"LOWER(category) IN ({placeholders})")
             params.extend(value.lower() for value in category_values)
 
+        country_code = normalize_country_code(country)
+        if country_code:
+            clauses.append("(is_global = 1 OR availability_countries LIKE ?)")
+            params.append(f'%"{country_code}"%')
+
         if ships_to:
-            country = ships_to.strip().upper()
-            if country:
+            shipping_country = normalize_country_code(ships_to)
+            if shipping_country:
                 clauses.append("ships_to LIKE ?")
-                params.append(f'%"{country}"%')
+                params.append(f'%"{shipping_country}"%')
 
         delivery_region_values = self._delivery_region_filter_values(delivery_region)
         if delivery_region_values:
@@ -754,6 +785,42 @@ class DealsRepository:
                 "count": int(row["count"]),
             }
             for row in rows
+        ]
+
+    def _availability_country_counts(self, rows: list[sqlite3.Row]) -> list[dict[str, object]]:
+        explicit: Counter[str] = Counter()
+        global_count = 0
+        for row in rows:
+            if bool(row["is_global"]):
+                global_count += 1
+            raw = row["availability_countries"] or "[]"
+            try:
+                values = json.loads(raw)
+            except json.JSONDecodeError:
+                values = []
+            if not isinstance(values, list):
+                continue
+            for value in values:
+                code = normalize_country_code(value)
+                if code:
+                    explicit[code] += 1
+
+        candidate_codes = set(explicit)
+        if global_count:
+            candidate_codes.update(SUPPORTED_FILTER_COUNTRIES)
+
+        ranked = sorted(
+            candidate_codes,
+            key=lambda code: (-(explicit[code] + global_count), country_name(code), code),
+        )
+        return [
+            {
+                "id": code,
+                "name": country_name(code),
+                "count": explicit[code] + global_count,
+            }
+            for code in ranked[:200]
+            if explicit[code] + global_count > 0
         ]
 
     def _shipping_country_counts(self, rows: list[sqlite3.Row]) -> list[dict[str, object]]:
@@ -933,6 +1000,8 @@ class DealsRepository:
             int(deal.free_shipping),
             int(deal.verified),
             json.dumps(deal.ships_to),
+            json.dumps(deal.availability_countries),
+            int(deal.is_global),
             json.dumps(self._delivery_regions_for_deal(deal)),
             int(deal.hot_deal),
             int(deal.lowest_price),
@@ -998,6 +1067,14 @@ class DealsRepository:
         except json.JSONDecodeError:
             ships_to = []
 
+        availability_raw = row["availability_countries"] if "availability_countries" in row.keys() else "[]"
+        try:
+            parsed_availability = json.loads(availability_raw or "[]")
+        except json.JSONDecodeError:
+            parsed_availability = []
+        if not isinstance(parsed_availability, list):
+            parsed_availability = []
+
         delivery_regions_raw = row["delivery_regions"] if "delivery_regions" in row.keys() else "[]"
         try:
             parsed_delivery_regions = json.loads(delivery_regions_raw or "[]")
@@ -1029,6 +1106,10 @@ class DealsRepository:
             free_shipping=bool(row["free_shipping"]),
             verified=bool(row["verified"]),
             ships_to=[str(item).upper() for item in ships_to],
+            availability_countries=[
+                code for item in parsed_availability if (code := normalize_country_code(item))
+            ],
+            is_global=bool(row["is_global"]) if "is_global" in row.keys() else False,
             delivery_regions=self._normalize_delivery_regions(parsed_delivery_regions),
             hot_deal=bool(row["hot_deal"]),
             lowest_price=bool(row["lowest_price"]),

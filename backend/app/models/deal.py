@@ -49,6 +49,8 @@ class Deal(ApiModel):
     free_shipping: bool = False
     verified: bool = False
     ships_to: list[str] = Field(default_factory=list)
+    availability_countries: list[str] = Field(default_factory=list)
+    is_global: bool = False
     delivery_regions: list[DealDeliveryRegion] = Field(default_factory=list)
     hot_deal: bool = False
     lowest_price: bool = False
@@ -85,6 +87,8 @@ class DealResponse(ApiModel):
     free_shipping: bool
     verified: bool
     ships_to: list[str]
+    availability_countries: list[str]
+    is_global: bool
     delivery_regions: list[DealDeliveryRegion]
     hot_deal: bool
     lowest_price: bool
@@ -123,6 +127,7 @@ class DealsFacetsResponse(ApiModel):
     total: int
     marketplaces: list[DealFacetItem]
     categories: list[DealFacetItem]
+    countries: list[DealFacetItem]
     shipping_countries: list[DealFacetItem]
     delivery_regions: list[DealFacetItem]
     currencies: list[DealFacetItem]
@@ -182,6 +187,8 @@ class DealUpsertRequest(ApiModel):
     free_shipping: bool = False
     verified: bool = False
     ships_to: list[str] = Field(default_factory=list)
+    availability_countries: list[str] = Field(default_factory=list)
+    is_global: bool | None = None
     delivery_regions: list[DealDeliveryRegion] = Field(default_factory=list)
     hot_deal: bool = False
     lowest_price: bool = False
