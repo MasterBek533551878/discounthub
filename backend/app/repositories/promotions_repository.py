@@ -155,6 +155,38 @@ class PromotionsRepository:
         ]
         return items, global_count
 
+    def delete_missing_awin_promotions(self, active_promotion_ids: set[str]) -> int:
+        """Delete stale Awin promotion rows absent from a complete Awin snapshot.
+
+        This must only be called after the Awin Offers API has been read
+        completely. A partial/failed snapshot must never prune stored rows.
+        """
+        with get_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id
+                FROM promotions
+                WHERE provider_id LIKE 'awin_offers_%'
+                   OR id LIKE 'awin:%'
+                """
+            ).fetchall()
+
+            stale_ids = [
+                str(row["id"])
+                for row in rows
+                if str(row["id"]) not in active_promotion_ids
+            ]
+
+            if not stale_ids:
+                return 0
+
+            connection.executemany(
+                "DELETE FROM promotions WHERE id = ?",
+                [(promotion_id,) for promotion_id in stale_ids],
+            )
+            connection.commit()
+            return len(stale_ids)
+
     def upsert_many(self, promotions: list[Promotion]) -> int:
         if not promotions:
             return 0

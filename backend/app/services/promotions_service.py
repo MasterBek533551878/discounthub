@@ -225,6 +225,9 @@ class PromotionsService:
         promotions = [self._request_to_promotion(payload) for payload in payloads]
         return self._repository.upsert_many(promotions)
 
+    def delete_missing_awin_promotions(self, active_promotion_ids: set[str]) -> int:
+        return self._repository.delete_missing_awin_promotions(active_promotion_ids)
+
     def _request_to_promotion(self, payload: PromotionUpsertRequest) -> Promotion:
         monetization_mode = payload.monetization_mode
         if monetization_mode is None:

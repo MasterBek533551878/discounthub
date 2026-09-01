@@ -75,7 +75,13 @@ def admin_delete_partner_offer(offer_id: str) -> PartnerOfferActionResponse:
 )
 def admin_sync_awin_promotions(payload: AwinPromotionSyncRequest) -> AwinPromotionSyncResponse:
     total_before = promotions_service.count_promotions()
-    promotions, skipped_count, pages_checked = awin_offers_service.fetch_promotions(payload)
+    (
+        promotions,
+        skipped_count,
+        pages_checked,
+        _seen_promotion_ids,
+        _snapshot_complete,
+    ) = awin_offers_service.fetch_promotions(payload)
     imported_count = promotions_service.upsert_promotions(promotions)
     cleanup_result = promotion_cleanup_service.cleanup_promotions()
     total_after = cleanup_result.remaining_count

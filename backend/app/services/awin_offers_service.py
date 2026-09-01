@@ -25,7 +25,10 @@ class AwinOffersService:
     - Offers API creates store-level promo/voucher cards in /promotions.
     """
 
-    def fetch_promotions(self, request: AwinPromotionSyncRequest) -> tuple[list[PromotionUpsertRequest], int, int]:
+    def fetch_promotions(
+        self,
+        request: AwinPromotionSyncRequest,
+    ) -> tuple[list[PromotionUpsertRequest], int, int, set[str], bool]:
         settings = get_settings()
         publisher_id = settings.awin_publisher_id.strip()
         access_token = (settings.awin_api_access_token or settings.awin_datafeed_api_key).strip()
@@ -45,6 +48,8 @@ class AwinOffersService:
         promotions: list[PromotionUpsertRequest] = []
         skipped = 0
         pages_checked = 0
+        seen_promotion_ids: set[str] = set()
+        snapshot_complete = False
 
         for page in range(1, request.max_pages + 1):
             pages_checked = page
@@ -52,9 +57,22 @@ class AwinOffersService:
             response = self._post_json(endpoint, body=body, access_token=access_token)
             items = self._extract_items(response)
             if not items:
+                snapshot_complete = True
                 break
 
             for item in items:
+                # Track the raw Awin ID BEFORE DiscountHub filtering.
+                # An offer can be skipped by our content/value filter while
+                # still being a perfectly valid active offer in Awin.
+                promotion_id = self._first_value(
+                    item,
+                    "promotionId",
+                    "promotion_id",
+                    "id",
+                )
+                if promotion_id is not None and str(promotion_id).strip():
+                    seen_promotion_ids.add(f"awin:{str(promotion_id).strip()}")
+
                 promo = self._item_to_promotion(item)
                 if promo is None:
                     skipped += 1
@@ -62,9 +80,16 @@ class AwinOffersService:
                 promotions.append(promo)
 
             if len(items) < request.page_size:
+                snapshot_complete = True
                 break
 
-        return promotions, skipped, pages_checked
+        return (
+            promotions,
+            skipped,
+            pages_checked,
+            seen_promotion_ids,
+            snapshot_complete,
+        )
 
     def _offers_endpoint(self, base_url: str, publisher_id: str, access_token: str) -> str:
         base = base_url.strip().rstrip("/") or "https://api.awin.com"

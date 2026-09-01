@@ -135,6 +135,7 @@ class FeedSyncScheduler:
         promotion_status = "skipped"
         promotion_error: str | None = None
         promotion_imported_count = 0
+        stale_deleted_count = 0
         promotion_fetched_count = 0
         promotion_skipped_count = 0
         promotion_pages_checked = 0
@@ -145,11 +146,40 @@ class FeedSyncScheduler:
                     page_size=settings.awin_promotions_sync_page_size,
                     max_pages=settings.awin_promotions_sync_max_pages,
                 )
-                promotions, skipped_count, pages_checked = awin_offers_service.fetch_promotions(request)
+                (
+                    promotions,
+                    skipped_count,
+                    pages_checked,
+                    seen_promotion_ids,
+                    snapshot_complete,
+                ) = awin_offers_service.fetch_promotions(request)
                 promotion_imported_count = promotions_service.upsert_promotions(promotions)
                 promotion_fetched_count = len(promotions) + skipped_count
                 promotion_skipped_count = skipped_count
                 promotion_pages_checked = pages_checked
+
+                # Pruning must use every raw promotion ID returned by Awin,
+                # not only offers that passed DiscountHub filtering.
+                #
+                # This distinguishes:
+                #   "Awin no longer has this offer"
+                # from
+                #   "DiscountHub decided not to display this offer".
+                #
+                # Fail-safe: an incomplete or unexpectedly empty snapshot never
+                # receives permission to delete stored Awin promotions.
+                snapshot_safe_to_prune = (
+                    snapshot_complete
+                    and bool(seen_promotion_ids)
+                )
+
+                if snapshot_safe_to_prune:
+                    stale_deleted_count = promotions_service.delete_missing_awin_promotions(
+                        seen_promotion_ids
+                    )
+                else:
+                    stale_deleted_count = 0
+
                 promotion_status = "ok"
             except Exception as exc:  # Keep products alive even if Awin offers fails.
                 promotion_status = "error"
@@ -168,6 +198,7 @@ class FeedSyncScheduler:
         if promotion_status == "ok":
             message_parts.append(
                 f"Awin promotions imported/updated {promotion_imported_count}; "
+                f"removed {stale_deleted_count} stale Awin promotion(s); "
                 f"cleaned {cleanup_result.deleted_count}."
             )
         elif promotion_status == "skipped":
@@ -188,6 +219,7 @@ class FeedSyncScheduler:
             "promotionFetchedCount": promotion_fetched_count,
             "promotionSkippedCount": promotion_skipped_count,
             "promotionPagesChecked": promotion_pages_checked,
+            "promotionStaleDeletedCount": stale_deleted_count,
             "promotionCleanupDeletedCount": cleanup_result.deleted_count,
             "promotionCleanupDeletedReasons": cleanup_result.deleted_reasons,
             "promotionCount": promotion_count,
