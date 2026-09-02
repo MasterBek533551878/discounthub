@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 import re
 from threading import Lock
 from typing import Any
@@ -16,6 +17,9 @@ from app.models.ai_assistant import AiChatHistoryItem, AiOfferCard
 from app.services.deals_service import deals_service
 from app.services.partner_offers_service import partner_offers_service
 from app.services.promotions_service import promotions_service
+
+
+logger = logging.getLogger(__name__)
 
 
 class AiAssistantUnavailableError(RuntimeError):
@@ -87,13 +91,19 @@ class AiAssistantService:
             raise AiAssistantUnavailableError("AI assistant is disabled")
 
         intent, provider = self._extract_intent(message, history)
+        # Optional preferences must never turn an actionable shopping request
+        # into a questionnaire, including when the model asks anyway.
+        fallback = self._fallback_intent(message, history)
+        if intent.needs_clarification and not fallback.needs_clarification:
+            intent, provider = fallback, "local_fallback"
         intent = self._normalize_intent(intent, message)
         language = "ru" if intent.language.lower().startswith("ru") or re.search(r"[а-яё]", message.lower()) else "en"
         if intent.needs_clarification:
             question = intent.clarifying_question.strip() or self._clarifying_question(language)
             return question, True, [], self._suggestions(intent.suggestions, language), provider
 
-        query = self._clean(intent.query) or self._clean(message)
+        # An empty query is valid for store-only or catalogue-wide requests.
+        query = self._clean(intent.query)
         cards: list[AiOfferCard] = []
         if intent.include_deals:
             cards.extend(self._deals(intent, query))
@@ -115,13 +125,13 @@ class AiAssistantService:
             reply = (
                 f"Я нашёл {len(unique)} подходящих предложений в DiscountHub. Показываю только данные из нашей актуальной базы."
                 if unique
-                else "Пока не нашёл подтверждённых предложений. Попробуйте изменить товар, бюджет или магазин."
+                else "По этим условиям предложений в каталоге нет. Можно расширить поиск или изменить бюджет."
             )
         else:
             reply = (
                 f"I found {len(unique)} matching DiscountHub offers. These results come only from our current database."
                 if unique
-                else "I couldn't find a verified match yet. Try changing the product, budget, or store."
+                else "No catalogue offers match these filters. You can broaden the search or change the budget."
             )
         return reply, False, unique, self._suggestions(intent.suggestions, language), provider
 
@@ -132,14 +142,18 @@ class AiAssistantService:
     ) -> tuple[SearchIntent, str]:
         api_key = self.settings.gemini_api_key.strip()
         if not api_key:
-            return self._fallback_intent(message), "local_fallback"
+            return self._fallback_intent(message, history), "local_fallback"
 
-        history_text = "\n".join(f"{item.role}: {item.content.strip()}" for item in history[-6:])
+        history_text = "\n".join(f"{item.role}: {item.content.strip()}" for item in history[-8:])
         prompt = f"""
 You parse shopping intent for DiscountHub. DiscountHub has only product deals, store promotions/promo codes, and curated partner offers.
 Return JSON search filters only. Never invent an offer, code, price, store, or product. Never use web search.
-Use the message and history. Ask one short clarification only if no useful search can be inferred.
-Keep query short. Empty string or 0 means unspecified. Return up to three suggestion chips in the user's language.
+Search immediately whenever a product, category, store or offer type can be inferred. Budget, country, store and minimum discount are OPTIONAL; never ask for them before searching.
+Set needs_clarification=false for broad requests like "laptops", "ноутки", "I need notebook for job", "promo codes" or "show me deals". Ask only when there is no shopping target or understandable search at all.
+Use history to resolve follow-ups: "cheaper", "under $500", "до 500", "same store" modify the previous search. Preserve the product and explicit filters unless the user changes/removes them. A new product starts a new search. Assistant suggestions are not user choices.
+Keep query to catalogue product keywords, normally English. Correct clear typos and translate common product names (ноутки/ноутбуки/noutbook -> laptop, наушники -> headphones). Remove conversational filler and purpose text like "I need", "for job", "for work". Never put price, discount, country or store into query: use their fields.
+Use empty query for store-only or general deals/promo-code requests. Product searches normally include_deals only; promo-code requests include_promotions only. Category must be an actual broad catalogue category (Computers, Electronics, Home, Fashion, Beauty, Sports, Other) or empty; do not invent narrow categories. Country uses ISO two-letter codes or empty, never inferred from the user's language.
+Prices and budgets are in USD. Empty string or 0 means unspecified; unspecified min_discount is 1 (any discount), sort is score_desc. "Cheaper" uses price_asc. Return up to three OPTIONAL refinement chips in the user's language, not questions that block results.
 History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
 """.strip()
         schema: dict[str, Any] = {
@@ -170,7 +184,7 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.1,
-                "maxOutputTokens": 450,
+                "maxOutputTokens": 1024,
                 "responseMimeType": "application/json",
                 "responseSchema": schema,
             },
@@ -197,36 +211,97 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
             TypeError,
             ValidationError,
             json.JSONDecodeError,
-        ):
-            return self._fallback_intent(message), "local_fallback"
+        ) as exc:
+            # Do not log request bodies, keys or the provider's response text.
+            logger.warning("AI intent provider failed (%s); using local search", type(exc).__name__)
+            return self._fallback_intent(message, history), "local_fallback"
 
-    def _fallback_intent(self, message: str) -> SearchIntent:
+    def _fallback_intent(
+        self, message: str, history: list[AiChatHistoryItem] | None = None,
+    ) -> SearchIntent:
+        # Rebuild only from user turns: suggestions and questions from the
+        # assistant must not become filters the shopper never requested.
+        previous = None
+        for item in (history or [])[-8:]:
+            if item.role == "user":
+                previous = self._parse_local_turn(item.content, previous)
+        return self._parse_local_turn(message, previous)
+
+    def _parse_local_turn(self, message: str, previous: SearchIntent | None) -> SearchIntent:
         lower = message.lower().strip()
         language = "ru" if re.search(r"[а-яё]", lower) else "en"
-        max_price = 0.0
-        match = re.search(r"(?:under|below|up to|max(?:imum)?|до|не дороже|максимум)\s*[$€£]?\s*(\d+(?:[.,]\d+)?)", lower)
-        if match:
-            max_price = float(match.group(1).replace(",", "."))
-        discount_match = re.search(r"(\d{1,3})\s*%", lower)
-        min_discount = min(100, int(discount_match.group(1))) if discount_match else 0
+        budget = re.search(r"(?:under|below|up to|max(?:imum)?|до|не дороже|максимум)\s*\$?\s*(\d+(?:[.,]\d+)?)\s*(?:usd|доллар\w*)?", lower)
+        discount = re.search(r"(?:at least|from|от|скидк\w*\s*от)?\s*(\d{1,3})\s*%", lower)
+        promo = bool(re.search(r"\b(?:promo(?:tion)?s?|codes?|coupons?|vouchers?|промокод\w*|купон\w*)\b", lower))
+        partner = bool(re.search(r"\b(?:partner|lifetime|saas|software|партнёр\w*|сервис\w*|подписк\w*)\b", lower))
+        deals = bool(re.search(r"\b(?:deals?|discounts?|товар\w*|скидк\w*)\b", lower))
+        cheaper = bool(re.search(r"\b(?:cheaper|cheapest|дешевле|подешевле)\b", lower))
+        clear_budget = bool(re.search(r"(?:no budget|any price|без ограничени\w* по цене|любой бюджет)", lower))
+        clear_discount = bool(re.search(r"(?:any discount|любой процент|любая скидка|скидка неважна)", lower))
+        clear_country = bool(re.search(r"(?:all countries|worldwide|все страны|любая страна)", lower))
+        clear_store = bool(re.search(r"(?:all stores|any store|все магазины|любой магазин)", lower))
+        country_match = re.search(r"\b(?:in|for|в|для)\s+(US|USA|UK|GB|DE|FR|PL|UZ|united states|germany|poland|uzbekistan|сша|германии|польше|узбекистане)\b", message, re.I)
+        country = ""
+        if country_match:
+            country = self._normalize_country({"германии": "DE", "польше": "PL", "узбекистане": "UZ"}.get(country_match[1].lower(), country_match[1]))
+        store_match = re.search(r"\b(ebay(?:\s+(?:us|uk|gb|de|fr|it|es|au))?|aliexpress(?:\s+(?:us|fr|pl|de|es))?|amazon)\b", lower)
+        platform = store_match[1] if store_match else ""
 
-        promo = any(term in lower for term in ("promo", "coupon", "voucher", "code", "промокод", "купон"))
-        partner = any(term in lower for term in ("partner", "lifetime", "saas", "software", "партнёр", "сервис", "подписк"))
-        deal = any(term in lower for term in ("product", "buy", "price", "deal", "товар", "купить", "цена", "скидк"))
-        selected = promo or partner or deal
-        query = self._clean(message)
-        return SearchIntent(
-            language=language,
-            needs_clarification=len(query) < 2,
-            clarifying_question=self._clarifying_question(language),
-            query=query,
-            max_price=max_price,
-            min_discount=min_discount,
-            include_deals=deal if selected else True,
-            include_promotions=promo if selected else True,
-            include_partner_offers=partner if selected else True,
-            sort="discount_desc" if min_discount else "score_desc",
-        )
+        query = lower
+        query = re.sub(r"\b(?:biggest|largest|best|maximum)\s+discounts?\b", " ", query)
+        for match in (budget, discount, country_match, store_match):
+            if match:
+                query = query.replace(match[0].lower(), " ")
+        query = re.sub(r"(?:for (?:my )?(?:job|work|school|study)|для (?:работы|учёбы|учебы))\b", " ", query)
+        query = re.sub(r"(?:no budget|any price|без ограничени\w* по цене|любой бюджет|any discount|любой процент|любая скидка|скидка неважна|all countries|worldwide|все страны|любая страна|all stores|any store|все магазины|любой магазин)", " ", query)
+        query = re.sub(r"\b(?:i|me|my|need|want|would|like|please|find|show|give|looking|look|search|buy|some|a|an|the|for|on|in|from|at|with|and|but|instead|only|now|then|useful|online|shopping|cheaper|cheapest|мне|я|нужен|нужна|нужны|хочу|найди|найдите|покажи|покажите|пожалуйста|купить|для|на|в|с|со|а|и|только|теперь|дешевле|подешевле)\b", " ", query)
+        query = re.sub(r"\b(?:promo(?:tion)?s?|codes?|coupons?|vouchers?|deals?|discounts?|промокод\w*|купон\w*|скидк\w*|товар\w*)\b", " ", query)
+        query = self._product_keywords(query).strip(" .,!?:;-")
+        ambiguous = bool(re.fullmatch(r"(?:hi|hello|help|thanks|привет|помоги|спасибо|что посоветуешь|what do you recommend)", lower.strip(" .!?")))
+        query = "" if ambiguous else query
+
+        # A filter-only follow-up inherits the previous subject. Naming another
+        # product starts a fresh search, so stale laptop filters cannot leak.
+        refinement = not query and not ambiguous and bool(budget or discount or cheaper or clear_budget or clear_discount or clear_country or clear_store or country_match or store_match)
+        intent = previous.model_copy(deep=True) if previous and refinement and not previous.needs_clarification else SearchIntent(min_discount=1, include_promotions=False, include_partner_offers=False)
+        intent.language = language
+        if not refinement or not previous:
+            intent.query = query
+        if budget:
+            intent.max_price = float(budget[1].replace(",", "."))
+        if clear_budget:
+            intent.max_price = 0
+        if discount:
+            intent.min_discount = max(1, min(100, int(discount[1])))
+        if clear_discount:
+            intent.min_discount = 1
+        if country_match or clear_country:
+            intent.country = country
+        if store_match or clear_store:
+            intent.platform = platform
+        if cheaper:
+            intent.sort = "price_asc"
+        elif discount or "biggest discount" in lower:
+            intent.sort = "discount_desc"
+        if promo or partner:
+            intent.include_deals = False
+            intent.include_promotions = promo
+            intent.include_partner_offers = partner
+        intent.needs_clarification = ambiguous or not bool(intent.query or intent.platform or intent.country or budget or discount or cheaper and previous or promo or partner or deals)
+        intent.clarifying_question = self._clarifying_question(language) if intent.needs_clarification else ""
+        return intent
+
+    @staticmethod
+    def _product_keywords(value: str) -> str:
+        aliases = {
+            r"\b(?:ноут(?:бук\w*|ки|ы)?|noutbook|laptops?|notebooks?)\b": "laptop",
+            r"\bнаушник\w*\b": "headphones",
+            r"\b(?:телефон\w*|смартфон\w*)\b": "smartphone",
+            r"\bбеспроводн\w*\b": "wireless",
+        }
+        for pattern, replacement in aliases.items():
+            value = re.sub(pattern, replacement, value, flags=re.I)
+        return re.sub(r"\s+", " ", value).strip()[:180]
 
     def _deals(self, intent: SearchIntent, query: str) -> list[AiOfferCard]:
         items = []
@@ -237,10 +312,11 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
                     q=candidate_query or None,
                     platform=intent.platform.strip() or None,
                     category=intent.category.strip() or None,
-                    ships_to=intent.country.strip() or None,
+                    country=intent.country.strip() or None,
+                    ships_to=None,
                     delivery_region=None,
                     currency="USD",
-                    min_discount=intent.min_discount or None,
+                    min_discount=max(1, intent.min_discount),
                     min_rating=None,
                     max_price=intent.max_price or None,
                     free_shipping=None,
@@ -290,6 +366,7 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
                 q=query or None,
                 type=None,
                 store=intent.platform.strip() or None,
+                country=intent.country.strip() or None,
                 sort="featured",
                 page=1,
                 page_size=4,
@@ -378,6 +455,8 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
 
         return intent.model_copy(
             update={
+                "query": cls._product_keywords(intent.query),
+                "min_discount": max(1, intent.min_discount),
                 "platform": platform,
                 "category": category,
                 "country": country,
@@ -805,8 +884,8 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
     @staticmethod
     def _clarifying_question(language: str) -> str:
         if language == "ru":
-            return "Что именно вы ищете и есть ли желаемая цена, магазин или размер скидки?"
-        return "What are you looking for, and do you have a preferred price, store, or discount?"
+            return "Какой товар или промокод найти?"
+        return "Which product or promo code would you like to find?"
 
     @staticmethod
     def _suggestions(items: list[str], language: str) -> list[str]:
