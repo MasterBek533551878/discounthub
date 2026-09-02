@@ -1,5 +1,6 @@
 import json
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.error import URLError
 
@@ -105,6 +106,40 @@ class ShoppingContextTests(unittest.TestCase):
             self.service._promotions(SearchIntent(country="PL"), "")
         self.assertEqual(promos.call_args.kwargs["country"], "PL")
         self.assertIsNone(promos.call_args.kwargs["q"])
+
+    def offer(self, title, price):
+        return SimpleNamespace(id=title, title=title, platform="Store", description="", discount_percent=20,
+                               current_price=price, old_price=price * 1.25, currency="USD", image_url="")
+
+    def test_cheaper_laptops_exclude_peripherals_without_price_floor(self):
+        rows = [self.offer("2 in 1 USB Card Reader for PC Laptop", 2),
+                self.offer("16 inch Portable Monitor for Laptop PC", 80),
+                self.offer("HP Probook Laptop 8GB RAM Intel i5 Windows", 101),
+                self.offer("Windows 7 Laptop Notebook PC Dual core 4GB RAM", 104),
+                self.offer("Lenovo 300e Chromebook 4GB 32GB", 105)]
+        with patch("app.services.ai_assistant_service.deals_service.list_deals", return_value=(rows, len(rows))) as search:
+            cards = self.service._deals(SearchIntent(sort="price_asc", max_price=500), "laptop")
+        self.assertEqual([x.current_price for x in cards], [101, 104, 105])
+        self.assertEqual(search.call_args.kwargs["category"], "Computers")
+        self.assertEqual(search.call_args.kwargs["max_price"], 500)
+        self.assertEqual(search.call_args.kwargs["sort"], "price_asc")
+
+    def test_laptop_search_continues_past_accessory_only_page(self):
+        accessory = self.offer("Laptop Stand Adjustable Holder", 5)
+        laptop = self.offer("Dell Latitude Laptop 16GB RAM 512GB SSD", 110)
+        with patch("app.services.ai_assistant_service.deals_service.list_deals", side_effect=[([accessory] * 24, 25), ([laptop], 25)]) as search:
+            cards = self.service._deals(SearchIntent(sort="price_asc"), "laptop")
+        self.assertEqual([x.title for x in cards], [laptop.title])
+        self.assertEqual([x.kwargs["page"] for x in search.call_args_list], [1, 2])
+
+    def test_explicit_laptop_accessories_still_search_normally(self):
+        accessory = self.offer("USB C Charger for Laptop", 9)
+        with patch("app.services.ai_assistant_service.deals_service.list_deals", return_value=([accessory], 1)) as search:
+            cards = self.service._deals(SearchIntent(sort="price_asc"), "laptop charger")
+        self.assertEqual([x.title for x in cards], [accessory.title])
+        self.assertIsNone(search.call_args.kwargs["category"])
+        self.assertTrue(self.service._wants_laptop("laptop 16GB RAM"))
+        self.assertTrue(self.service._is_laptop_title("Dell Latitude Laptop 16GB RAM 512GB SSD for work"))
 
 
 if __name__ == "__main__":
