@@ -305,40 +305,50 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
 
     def _deals(self, intent: SearchIntent, query: str) -> list[AiOfferCard]:
         items = []
+        laptop_search = self._wants_laptop(query)
+        page_size = 24 if laptop_search else 6
+        pages_read = 0
 
         for candidate_query in self._deal_query_variants(query):
-            try:
-                items, _ = deals_service.list_deals(
-                    q=candidate_query or None,
-                    platform=intent.platform.strip() or None,
-                    category=intent.category.strip() or None,
-                    country=intent.country.strip() or None,
-                    ships_to=None,
-                    delivery_region=None,
-                    currency="USD",
-                    min_discount=max(1, intent.min_discount),
-                    min_rating=None,
-                    max_price=intent.max_price or None,
-                    free_shipping=None,
-                    verified=None,
-                    monetization_mode=None,
-                    sort=(
-                        intent.sort
-                        if intent.sort in {
-                            "score_desc",
-                            "discount_desc",
-                            "price_asc",
-                            "newest",
-                        }
-                        else "score_desc"
-                    ),
-                    page=1,
-                    page_size=6,
-                )
-            except (TypeError, ValueError):
-                continue
+            for page in range(1, 4 if laptop_search else 2):
+                if laptop_search and pages_read >= 6:
+                    break
+                pages_read += 1
+                try:
+                    candidates, total = deals_service.list_deals(
+                        q=candidate_query or None,
+                        platform=intent.platform.strip() or None,
+                        category=intent.category.strip() or ("Computers" if laptop_search else None),
+                        country=intent.country.strip() or None,
+                        ships_to=None,
+                        delivery_region=None,
+                        currency="USD",
+                        min_discount=max(1, intent.min_discount),
+                        min_rating=None,
+                        max_price=intent.max_price or None,
+                        free_shipping=None,
+                        verified=None,
+                        monetization_mode=None,
+                        sort=(
+                            intent.sort
+                            if intent.sort in {
+                                "score_desc",
+                                "discount_desc",
+                                "price_asc",
+                                "newest",
+                            }
+                            else "score_desc"
+                        ),
+                        page=page,
+                        page_size=page_size,
+                    )
+                except (TypeError, ValueError):
+                    break
+                items.extend(item for item in candidates if not laptop_search or self._is_laptop_title(item.title))
+                if len(items) >= 6 or page * page_size >= total or not candidates:
+                    break
 
-            if items:
+            if items or (laptop_search and pages_read >= 6):
                 break
 
         return [
@@ -357,8 +367,25 @@ History:\n{history_text or '(none)'}\nMessage:\n{message.strip()}
                 click_url=f"https://api.discounthub.uz/deals/{item.id}/click",
                 page_url=f"https://discounthub.uz/deals/?deal_id={item.id}",
             )
-            for item in items
+            for item in items[:6]
         ]
+
+    @staticmethod
+    def _wants_laptop(query: str) -> bool:
+        # Apply whole-device matching only when the shopper wants a laptop.
+        # Explicit accessory searches retain their usual catalogue behavior.
+        return bool(re.search(r"\b(?:laptops?|notebooks?|chromebooks?|macbooks?|thinkpads?|ultrabooks?)\b", query, re.I)) and not bool(re.search(
+            r"\b(?:chargers?|adapters?|cables?|batter(?:y|ies)|screens?|monitors?|keyboards?|parts?|accessor\w*|cases?|bags?|sleeves?|stands?|заряд\w*|адаптер\w*|кабел\w*|аккумулятор\w*|экран\w*|чехол\w*|сумк\w*)\b", query, re.I
+        ))
+
+    @staticmethod
+    def _is_laptop_title(title: str) -> bool:
+        # A mention in "for Laptop/MacBook" describes compatibility, not the
+        # product being sold. Catalogue categories also contain peripherals.
+        subject = re.split(r"\b(?:for|compatible|pour|für|для)\b", title, maxsplit=1, flags=re.I)[0]
+        if re.search(r"\b(?:adapters?|chargers?|cables?|readers?|stylus|controllers?|converters?|hubs?|sleeves?|bags?|covers?|stands?|protectors?|replacement|monitor|batteries|battery|keyboard|cooling|cleaning)\b", subject, re.I):
+            return False
+        return bool(re.search(r"\b(?:laptops?|notebooks?|chromebooks?|macbooks?|thinkpads?|ultrabooks?|elitebook|probook|latitude|vivobook|zenbook|omnibook)\b", subject, re.I))
 
     def _promotions(self, intent: SearchIntent, query: str) -> list[AiOfferCard]:
         try:
